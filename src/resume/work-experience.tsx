@@ -1,7 +1,42 @@
 import { Timeline2 } from "@/components/examples/c-timeline-2"
-import { IconLink } from "@tabler/icons-react"
+import { Button } from "@/components/ui/button"
+import { IconLink, IconUserScan } from "@tabler/icons-react"
 
 const roadmap = [
+  {
+    id: 6,
+    date: "",
+    important: true,
+    title: (
+      <a
+        href="https://www.linkedin.com/in/abdulmaliknahid/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 text-lg font-bold hover:text-blue-500"
+      >
+        Hire me!{" "}
+        <IconUserScan size={25} className="relative bottom-0.5 inline-block" />
+      </a>
+    ),
+    description: (
+      <div className="flex flex-col gap-4 rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-500 dark:bg-yellow-100 dark:text-gray-800">
+        <p>
+          I am currently seeking new opportunities to contribute my skills and
+          expertise in frontend development. If you are looking for a dedicated
+          and experienced frontend developer, please feel free to reach out to
+          me via{" "}
+          <a
+            href="https://www.linkedin.com/in/abdulmaliknahid/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-500"
+          >
+            LinkedIn <IconLink size={15} className="inline-block" />
+          </a>
+        </p>
+      </div>
+    ),
+  },
   {
     id: 1,
     date: "Feb 2024 August 2026",

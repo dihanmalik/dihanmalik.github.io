@@ -17,6 +17,7 @@ type RoadMapItem = {
   subTitle?: string
   description: React.ReactNode
   tags?: string[]
+  important?: boolean
 }
 
 const baseRoadmap: RoadMapItem[] = [
@@ -66,7 +67,7 @@ export const Timeline2: React.FC<{ roadmap?: RoadMapItem[] }> = ({
   roadmap = baseRoadmap,
 }) => {
   return (
-    <Timeline defaultValue={5} className="w-full">
+    <Timeline defaultValue={roadmap.length} className="w-full">
       {roadmap.map((item) => (
         <TimelineItem
           key={item.id}
@@ -74,7 +75,9 @@ export const Timeline2: React.FC<{ roadmap?: RoadMapItem[] }> = ({
           className="sm:group-data-[orientation=vertical]/timeline:ms-32"
         >
           <TimelineHeader>
-            <TimelineSeparator />
+            <TimelineSeparator
+            // className={item.important ? "!bg-yellow-500" : ""}
+            />
             <TimelineDate className="sm:group-data-[orientation=vertical]/timeline:absolute sm:group-data-[orientation=vertical]/timeline:-left-32 sm:group-data-[orientation=vertical]/timeline:w-20 sm:group-data-[orientation=vertical]/timeline:text-center">
               {item.date}
             </TimelineDate>
@@ -86,7 +89,11 @@ export const Timeline2: React.FC<{ roadmap?: RoadMapItem[] }> = ({
                 </span>
               )}
             </TimelineTitle>
-            <TimelineIndicator />
+            <TimelineIndicator
+              className={
+                item.important ? "!border-yellow-800 bg-yellow-500" : ""
+              }
+            />
           </TimelineHeader>
           <TimelineContent>{item.description}</TimelineContent>
           {item.tags && (
