@@ -1,5 +1,4 @@
 import { Timeline2 } from "@/components/examples/c-timeline-2"
-import { Button } from "@/components/ui/button"
 import { IconLink, IconUserScan } from "@tabler/icons-react"
 
 const roadmap = [
