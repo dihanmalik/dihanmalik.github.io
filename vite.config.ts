@@ -16,7 +16,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: "/my-website/",
+  base: "/",
   build: {
     outDir: "dist",
   },
