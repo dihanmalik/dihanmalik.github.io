@@ -35,7 +35,10 @@ const roadmap = [
             LinkedIn <IconLink size={15} className="inline-block" />
           </a>
         </p>
-        <Button variant="outline" className="w-fit gap-2">
+        <Button
+          className="w-fit gap-2 bg-blue-500 text-white hover:bg-blue-600 hover:text-white dark:bg-black dark:text-white dark:hover:bg-gray-800"
+          variant="outline"
+        >
           <a href={myCVFile} target="_blank">
             Download my Resume{" "}
           </a>
