@@ -84,7 +84,7 @@ export const IntroSection = () => {
           <h1 className="text-4xl font-bold">Hi, I'm Nahid Abdulmalik</h1>
           <p className="text-md">
             You can call me <b>Dihan</b>{" "}
-            <MyTooltip content="Opo, Filipino po ako 😁" side="bottom">
+            <MyTooltip content="Pure Filipino 😁" side="bottom">
               <span>🇵🇭</span>
             </MyTooltip>
           </p>

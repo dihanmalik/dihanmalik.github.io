@@ -1,5 +1,7 @@
 import { Timeline2 } from "@/components/examples/c-timeline-2"
-import { IconLink, IconUserScan } from "@tabler/icons-react"
+import { Button } from "@/components/ui/button"
+import { IconDownload, IconLink, IconUserScan } from "@tabler/icons-react"
+import myCVFile from "@/assets/CV_2026.pdf"
 
 const roadmap = [
   {
@@ -33,6 +35,12 @@ const roadmap = [
             LinkedIn <IconLink size={15} className="inline-block" />
           </a>
         </p>
+        <Button variant="outline" className="w-fit gap-2">
+          <a href={myCVFile} target="_blank">
+            Download my Resume{" "}
+          </a>
+          <IconDownload data-icon="inline-end" />
+        </Button>
       </div>
     ),
   },
