@@ -1,0 +1,139 @@
+.creative-portfolio {
+  --portfolio-grid: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --portfolio-glow: color-mix(in oklab, var(--foreground) 10%, transparent);
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at 84% 10%,
+      var(--portfolio-glow),
+      transparent 22rem
+    ),
+    radial-gradient(
+      circle at 10% 36%,
+      var(--portfolio-glow),
+      transparent 28rem
+    ),
+    var(--background);
+}
+
+.creative-portfolio::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.55;
+  background-image:
+    linear-gradient(var(--portfolio-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--portfolio-grid) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.portfolio-shell {
+  width: min(100% - 2rem, 76rem);
+  margin-inline: auto;
+}
+
+.portfolio-display {
+  font-size: clamp(3.25rem, 10vw, 8.75rem);
+  line-height: 0.83;
+  letter-spacing: -0.075em;
+}
+
+.portfolio-outline-text {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--foreground);
+}
+
+.portfolio-photo-frame {
+  box-shadow:
+    1rem 1rem 0 color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 2rem 5rem color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+
+.portfolio-photo-frame::after {
+  position: absolute;
+  inset: 0.75rem;
+  border: 1px solid color-mix(in oklab, white 65%, transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.portfolio-marquee-track {
+  width: max-content;
+  animation: portfolio-marquee 28s linear infinite;
+}
+
+.portfolio-marquee:hover .portfolio-marquee-track {
+  animation-play-state: paused;
+}
+
+.portfolio-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.portfolio-card::after {
+  position: absolute;
+  inset: auto -15% -65% auto;
+  width: 14rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  content: "";
+  transition:
+    transform 350ms ease,
+    opacity 350ms ease;
+  z-index: -1;
+}
+
+.portfolio-card:hover::after {
+  opacity: 0.9;
+  transform: scale(1.35);
+}
+
+.portfolio-reveal {
+  animation: portfolio-rise 700ms both;
+}
+
+.portfolio-reveal-delay-1 {
+  animation-delay: 100ms;
+}
+
+.portfolio-reveal-delay-2 {
+  animation-delay: 180ms;
+}
+
+.portfolio-reveal-delay-3 {
+  animation-delay: 260ms;
+}
+
+@keyframes portfolio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes portfolio-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-reveal,
+  .portfolio-marquee-track {
+    animation: none;
+  }
+
+  .portfolio-card::after {
+    transition: none;
+  }
+}

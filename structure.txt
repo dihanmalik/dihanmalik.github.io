@@ -1,0 +1,132 @@
+.
+├── CLAUDE.md
+├── components.json
+├── dist
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── apple-touch-icon.png
+│   ├── assets
+│   │   ├── CV_2026-Bm0rjGsE.pdf
+│   │   ├── index-C_e8YuXK.css
+│   │   ├── index-CgsrvS3A.js
+│   │   ├── me4-CJd1g1Y8.png
+│   │   ├── oxanium-latin-ext-wght-normal-C7ptlTmX.woff2
+│   │   └── oxanium-latin-wght-normal-BwpvAp5U.woff2
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── favicon.ico
+│   ├── index.html
+│   ├── me.jpg
+│   ├── me2.jpg
+│   ├── me3.png
+│   ├── react.png
+│   ├── site.webmanifest
+│   └── vite.svg
+├── eslint.config.js
+├── index.html
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── public
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── apple-touch-icon.png
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── favicon.ico
+│   ├── me.jpg
+│   ├── me2.jpg
+│   ├── me3.png
+│   ├── react.png
+│   ├── site.webmanifest
+│   └── vite.svg
+├── README.md
+├── src
+│   ├── App.tsx
+│   ├── assets
+│   │   ├── ant-design.svg
+│   │   ├── axios.svg
+│   │   ├── bitbucket.svg
+│   │   ├── brand-assets.zip
+│   │   ├── css3.svg
+│   │   ├── CV_2026.pdf
+│   │   ├── cypress.svg
+│   │   ├── docker.svg
+│   │   ├── fastify-dark.svg
+│   │   ├── fastify.svg
+│   │   ├── git.svg
+│   │   ├── github-dark.svg
+│   │   ├── github.svg
+│   │   ├── html5.svg
+│   │   ├── jest.svg
+│   │   ├── jira.svg
+│   │   ├── mapbox.svg
+│   │   ├── material-ui.svg
+│   │   ├── me4.png
+│   │   ├── mobx.svg
+│   │   ├── mongodb.svg
+│   │   ├── mysql.svg
+│   │   ├── nextjs.svg
+│   │   ├── nodejs.svg
+│   │   ├── postgre.svg
+│   │   ├── prisma-dark.svg
+│   │   ├── prisma.svg
+│   │   ├── react-logo.svg
+│   │   ├── react-query.svg
+│   │   ├── redis.svg
+│   │   ├── redux.svg
+│   │   ├── render-dark.svg
+│   │   ├── render.svg
+│   │   ├── shadcn-ui.svg
+│   │   ├── storybook.svg
+│   │   ├── supabase.svg
+│   │   ├── tailwindcss.svg
+│   │   ├── ts-logo-512.svg
+│   │   ├── vercel-dark.svg
+│   │   ├── vercel.svg
+│   │   ├── vite.svg
+│   │   └── zustand.svg
+│   ├── components
+│   │   ├── BorderGlow.tsx
+│   │   ├── ClickSpark.tsx
+│   │   ├── examples
+│   │   │   ├── c-timeline-1.tsx
+│   │   │   └── c-timeline-2.tsx
+│   │   ├── LogoLoop.tsx
+│   │   ├── Particles.tsx
+│   │   ├── reui
+│   │   │   └── timeline.tsx
+│   │   ├── theme-provider.tsx
+│   │   ├── TiltedCard.tsx
+│   │   └── ui
+│   │       ├── button.tsx
+│   │       ├── chip.tsx
+│   │       ├── custom
+│   │       │   ├── BackdropParticles.tsx
+│   │       │   ├── MyNavs.tsx
+│   │       │   └── MyTooltip.tsx
+│   │       ├── navigation-menu.tsx
+│   │       ├── separator.tsx
+│   │       ├── tabs.tsx
+│   │       └── tooltip.tsx
+│   ├── features
+│   │   └── tech-stacks
+│   │       └── constants
+│   │           ├── techLogos.tsx
+│   │           └── tectStacks.ts
+│   ├── index.css
+│   ├── lib
+│   │   └── utils.ts
+│   ├── main.tsx
+│   └── resume
+│       ├── educational-bg.tsx
+│       ├── intro-section.tsx
+│       ├── tech-stacks.tsx
+│       └── work-experience.tsx
+├── structure.txt
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+16 directories, 114 files
