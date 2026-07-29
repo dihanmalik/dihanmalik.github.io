@@ -12,7 +12,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "start:backend": "node --env-file=.env src/field-manual-portfolio/game/backend/server.mjs",
+    "start:backend": "node src/field-manual-portfolio/game/backend/server.mjs",
     "build:backend": "pnpm --dir src/field-manual-portfolio/game/backend run build",
     "deploy:api": "railway up src/field-manual-portfolio/game/backend --path-as-root",
     "predeploy": "pnpm run validate:client-env --require-production-url && pnpm run deploy:api && pnpm run build",
