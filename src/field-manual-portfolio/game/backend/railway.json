@@ -8,6 +8,8 @@
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 5
+    "restartPolicyMaxRetries": 5,
+    "projectId": "9fd34922-3357-4202-94a4-787e327420f9",
+    "serviceId": "b0e1f3c5-4d6a-4f8e-9c7b-2f0e1c3d4e5f"
   }
 }

@@ -22,7 +22,7 @@ const allowedOrigins = new Set(
 )
 
 const client = new MongoClient(process.env.MONGODB_URI, {
-  appName: "dihan-portfolio-game",
+  appName: "my-portfolio",
   maxPoolSize: 5,
   serverSelectionTimeoutMS: 5000,
 })
