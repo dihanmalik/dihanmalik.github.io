@@ -15,7 +15,7 @@ MongoDB connection string is never included in the browser bundle.
    pnpm --dir src/field-manual-portfolio/game/backend install
    ```
 
-5. Start the API with Node 20.6 or newer:
+5. Start the API with Node 22.13 or newer:
 
    ```sh
    pnpm run start:backend
