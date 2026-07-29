@@ -1,0 +1,294 @@
+.field-manual {
+  --manual-ink: var(--foreground);
+  --manual-paper: var(--background);
+  --manual-faint: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --manual-mid: color-mix(in oklab, var(--foreground) 22%, transparent);
+  --manual-accent: oklch(0.72 0.18 42);
+  --manual-accent-ink: oklch(0.19 0.04 38);
+  --manual-note: oklch(0.9 0.14 96);
+  min-height: 100vh;
+  overflow: clip;
+  color: var(--manual-ink);
+  background-color: var(--manual-paper);
+  background-image: radial-gradient(
+    var(--manual-mid) 0.65px,
+    transparent 0.65px
+  );
+  background-size: 6px 6px;
+}
+
+.manual-page {
+  width: min(100% - 1.5rem, 86rem);
+  margin-inline: auto;
+  background: color-mix(in oklab, var(--manual-paper) 96%, transparent);
+  border-inline: 1px solid var(--border);
+}
+
+.manual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manual-rule-text {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.manual-rule-text::after {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(
+    90deg,
+    var(--manual-accent),
+    var(--manual-ink) 45%,
+    transparent
+  );
+  content: "";
+}
+
+.manual-title {
+  max-width: 12ch;
+  font-size: clamp(3.65rem, 9.5vw, 9rem);
+  font-weight: 650;
+  line-height: 0.82;
+  letter-spacing: -0.075em;
+}
+
+.manual-title em {
+  display: inline-block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  color: var(--manual-accent);
+}
+
+.manual-sideways {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.manual-portrait {
+  transition: transform 500ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.manual-portrait-wrap:hover .manual-portrait {
+  transform: scale(1.025);
+}
+
+.manual-tape {
+  position: absolute;
+  width: 7rem;
+  height: 1.75rem;
+  background: color-mix(in oklab, var(--manual-note) 78%, transparent);
+  box-shadow: 0 1px 0 var(--manual-mid);
+  transform: rotate(-4deg);
+}
+
+.manual-highlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.manual-highlight::before {
+  position: absolute;
+  inset: 46% -0.16em 0.02em;
+  background: var(--manual-note);
+  content: "";
+  transform: rotate(-0.7deg);
+  z-index: -1;
+}
+
+.manual-open-stamp {
+  border: 2px solid var(--manual-accent);
+  border-radius: 999px;
+  color: var(--manual-accent);
+  transform: rotate(5deg);
+  box-shadow: inset 0 0 0 3px var(--manual-paper);
+}
+
+.manual-index-row {
+  transition:
+    background-color 180ms ease,
+    padding-inline 180ms ease;
+}
+
+.manual-index-row:hover {
+  padding-inline: 0.75rem;
+  background: var(--manual-faint);
+}
+
+.manual-index-row[open] {
+  background: color-mix(in oklab, var(--manual-accent) 9%, var(--manual-paper));
+}
+
+.manual-index-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.manual-index-row[open] .manual-index-plus {
+  transform: rotate(45deg);
+}
+
+.manual-index-plus {
+  transition: transform 180ms ease;
+}
+
+.manual-ai-map {
+  background-image:
+    linear-gradient(var(--manual-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--manual-faint) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.manual-map-node {
+  position: absolute;
+  box-shadow: 0 0 0 5px var(--manual-paper);
+}
+
+.manual-node-agents {
+  top: 8%;
+  left: 6%;
+}
+
+.manual-node-plugins {
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.manual-node-skills {
+  top: 12%;
+  right: 6%;
+}
+
+.manual-node-hooks {
+  top: 44%;
+  left: 4%;
+}
+
+.manual-node-rules {
+  top: 42%;
+  right: 4%;
+}
+
+.manual-node-mcp {
+  right: 6%;
+  bottom: 10%;
+}
+
+.manual-node-context {
+  bottom: 8%;
+  left: 7%;
+}
+
+.manual-ai-core {
+  color: var(--manual-accent-ink);
+  background: var(--manual-accent);
+  border-color: color-mix(in oklab, var(--manual-accent-ink) 35%, transparent);
+}
+
+.manual-accent-text {
+  color: var(--manual-accent);
+}
+
+.manual-open-strip {
+  background: color-mix(
+    in oklab,
+    var(--manual-accent) 13%,
+    var(--manual-paper)
+  );
+}
+
+.manual-status-ping,
+.manual-status-dot {
+  background: var(--manual-accent);
+}
+
+.manual-optimization-row h3 {
+  text-decoration-color: var(--manual-accent);
+  text-decoration-thickness: 0.2em;
+  text-underline-offset: 0.2em;
+}
+
+.manual-optimization-row:hover h3 {
+  text-decoration-line: underline;
+}
+
+.manual-metric {
+  transition:
+    color 220ms ease,
+    background-color 220ms ease;
+}
+
+.manual-metric:hover {
+  color: var(--manual-accent-ink);
+  background: var(--manual-accent);
+}
+
+.manual-toolkit {
+  color: var(--manual-accent-ink);
+  background: var(--manual-accent);
+}
+
+.manual-motion-ready [data-manual-reveal] {
+  opacity: 0;
+  transform: translateY(2rem) rotate(0.2deg);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 850ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--manual-delay, 0ms);
+}
+
+.manual-motion-ready [data-manual-reveal="left"] {
+  transform: translateX(-2.25rem);
+}
+
+.manual-motion-ready [data-manual-reveal="right"] {
+  transform: translateX(2.25rem);
+}
+
+.manual-motion-ready [data-manual-reveal].manual-visible {
+  opacity: 1;
+  transform: translate(0) rotate(0);
+}
+
+.manual-crawl {
+  width: max-content;
+  animation: manual-crawl 34s linear infinite;
+}
+
+@keyframes manual-crawl {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 900px) {
+  .manual-grid {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manual-crawl {
+    animation: none;
+  }
+
+  .manual-portrait,
+  .manual-index-row,
+  .manual-index-plus,
+  .manual-metric {
+    transition: none;
+  }
+
+  .manual-motion-ready [data-manual-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
