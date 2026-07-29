@@ -15,7 +15,10 @@ if (missingEnvironment.length > 0) {
 const port = Number(process.env.PORT || 8787)
 const collectionName = process.env.MONGODB_COLLECTION || "game_visitors"
 const allowedOrigins = new Set(
-  (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
+  (
+    process.env.ALLOWED_ORIGINS ||
+    "http://localhost:5173,https://dihanmalik.github.io"
+  )
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean)
