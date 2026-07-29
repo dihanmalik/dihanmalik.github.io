@@ -24,6 +24,45 @@
   border-inline: 1px solid var(--border);
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.manual-theme-toggle {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  cursor: pointer;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--manual-ink);
+  background: var(--manual-paper);
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.manual-theme-toggle:hover {
+  color: var(--manual-accent-ink);
+  background: var(--manual-accent);
+  transform: rotate(10deg);
+}
+
+.manual-theme-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.manual-theme-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .manual-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import type { CSSProperties, ReactNode } from "react"
 import {
   IconArrowDownRight,
@@ -13,11 +13,14 @@ import {
 
 import portrait from "@/assets/me4.png"
 import resume from "@/assets/CV_2026.pdf"
+import { useTheme } from "@/components/theme-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
+import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
 import { optimizationNotes, toolkit, workEntries } from "./data"
+import { ZombieBatGame } from "./game/ZombieBatGame"
 import "./field-manual.css"
 
 const navItems = [
@@ -25,7 +28,8 @@ const navItems = [
   ["01", "Optimization", "#optimization"],
   ["02", "Work index", "#work"],
   ["03", "AI practice", "#ai-practice"],
-  ["04", "Contact", "#contact"],
+  ["04", "Night shift", "#game"],
+  ["05", "Contact", "#contact"],
 ]
 
 function useScrollReveals() {
@@ -86,6 +90,40 @@ function MarginLabel({ children }: { children: ReactNode }) {
   )
 }
 
+function FieldManualThemeToggle({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme()
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
+    document.documentElement.classList.contains("dark") ? "dark" : "light"
+  )
+
+  useEffect(() => {
+    const updateResolvedTheme = () => {
+      setResolvedTheme(
+        document.documentElement.classList.contains("dark") ? "dark" : "light"
+      )
+    }
+
+    updateResolvedTheme()
+
+    const observer = new MutationObserver(updateResolvedTheme)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <AnimatedThemeToggler
+      theme={resolvedTheme}
+      onThemeChange={setTheme}
+      title={`Current preference: ${theme}`}
+      className={className}
+    />
+  )
+}
+
 function Sidebar() {
   return (
     <aside className="hidden border-r lg:block">
@@ -121,13 +159,16 @@ function Sidebar() {
             Philippines / GMT+8
           </p>
           <Separator className="my-4" />
-          <a
-            href="mailto:abdulmaliknahid@gmail.com"
-            className="flex items-center gap-2 text-xs font-semibold"
-          >
-            <IconCircleFilled className="manual-accent-text" />
-            Open to work
-          </a>
+          <div className="flex items-center justify-between gap-3">
+            <a
+              href="mailto:abdulmaliknahid@gmail.com"
+              className="flex items-center gap-2 text-xs font-semibold"
+            >
+              <IconCircleFilled className="manual-accent-text" />
+              Open to work
+            </a>
+            <FieldManualThemeToggle />
+          </div>
         </div>
       </div>
     </aside>
@@ -142,7 +183,10 @@ function Introduction() {
         <span className="hidden sm:inline">
           Frontend systems & product engineering
         </span>
-        <span>Manila time</span>
+        <span className="flex items-center gap-3">
+          <span>Manila time</span>
+          <FieldManualThemeToggle className="lg:hidden" />
+        </span>
       </div>
 
       <div
@@ -177,7 +221,7 @@ function Introduction() {
           <div className="overflow-hidden border bg-muted p-2">
             <img
               src={portrait}
-              alt="Dihan Abdulmalik"
+              alt="Nahid Abdulmalik"
               className="manual-portrait aspect-[4/5] w-full object-cover object-top"
             />
           </div>
@@ -471,7 +515,7 @@ function Contact() {
       >
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] uppercase">
-            04 / Open channel
+            05 / Open channel
           </p>
           <h2 className="mt-8 max-w-4xl text-5xl leading-[0.92] font-semibold tracking-tight sm:text-8xl">
             A good opportunity deserves a conversation.
@@ -532,7 +576,7 @@ function Contact() {
       </div>
 
       <p className="mt-16 flex flex-wrap items-center justify-between gap-3 text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">
-        <span>Dihan Abdulmalik © {new Date().getFullYear()}</span>
+        <span>Nahid Abdulmalik © {new Date().getFullYear()}</span>
         <span>Built with intent. Optimized with evidence.</span>
       </p>
     </footer>
@@ -553,6 +597,7 @@ export default function FieldManualPortfolio() {
             <WorkIndex />
             <AiPractice />
             <Toolkit />
+            <ZombieBatGame />
             <Contact />
           </main>
         </div>

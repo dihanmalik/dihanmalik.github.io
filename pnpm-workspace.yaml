@@ -1,5 +1,6 @@
 packages: []
 
 allowBuilds:
+  "@railway/cli": true
   esbuild: true
   msw: false
