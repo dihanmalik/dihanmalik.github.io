@@ -130,7 +130,7 @@ function Sidebar() {
       <div className="sticky top-0 flex min-h-screen flex-col p-6">
         <a href="#introduction" className="flex items-center justify-between">
           <span className="manual-accent-text text-xl font-bold tracking-tight">
-            DA/16
+            NA/10
           </span>
           <span className="text-[0.65rem] tracking-[0.18em] uppercase">
             Field manual
@@ -199,7 +199,7 @@ function Introduction() {
             Senior frontend developer
           </p>
           <h1 className="manual-title">
-            Built to be <em>used,</em> tuned to be fast.
+            Built to be <em>used,</em> tuned to be <em>fast.</em>
           </h1>
           <div className="mt-12 grid max-w-4xl gap-7 border-t pt-6 sm:grid-cols-[8rem_1fr]">
             <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
@@ -226,7 +226,7 @@ function Introduction() {
             />
           </div>
           <p className="absolute -right-4 -bottom-4 bg-background px-3 py-2 font-serif text-sm italic shadow-sm">
-            still curious ↗
+            still curious / 10 yrs building
           </p>
         </div>
       </div>

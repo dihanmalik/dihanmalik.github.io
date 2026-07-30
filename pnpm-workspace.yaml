@@ -1,7 +1,9 @@
-packages:
-  - "src/field-manual-portfolio/game/backend"
+packages: []
 
 allowBuilds:
-  "@railway/cli": true
   esbuild: true
   msw: false
+
+minimumReleaseAgeExclude:
+  - mobx-react-lite@5.0.0
+  - mobx@7.0.0
