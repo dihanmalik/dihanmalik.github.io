@@ -16,7 +16,7 @@
     "start:backend": "node src/field-manual-portfolio/game/backend/server.mjs",
     "build:backend": "pnpm --dir src/field-manual-portfolio/game/backend run build",
     "deploy:api": "railway up src/field-manual-portfolio/game/backend --path-as-root",
-    "predeploy": "pnpm run validate:client-env --require-production-url && pnpm run deploy:api && pnpm run build",
+    "postdeploy": "pnpm run validate:client-env --require-production-url && pnpm run deploy:api && pnpm run build",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
@@ -56,6 +56,6 @@
     "vite-plugin-svgr": "^5.2.0"
   },
   "engines": {
-    "node": "26.x"
+    "node": "22.x"
   }
 }
