@@ -1,4 +1,6 @@
-import { createServer } from "node:http"
+import cors from "@fastify/cors"
+import rateLimit from "@fastify/rate-limit"
+import Fastify from "fastify"
 import { MongoClient } from "mongodb"
 
 const requiredEnvironment = ["MONGODB_URI", "MONGODB_DB"]
@@ -36,99 +38,68 @@ const collection = client.db(process.env.MONGODB_DB).collection(collectionName)
 
 await collection.createIndex({ createdAt: -1 })
 
-const attemptsByAddress = new Map()
-const RATE_WINDOW_MS = 10 * 60 * 1000
-const RATE_LIMIT = 5
+const app = Fastify({
+  logger: true,
+  trustProxy: true,
+  bodyLimit: 4096,
+  requestTimeout: 15_000,
+})
 
-function applyCors(request, response) {
+function corsOriginHandler(origin, callback) {
+  callback(null, Boolean(origin && allowedOrigins.has(origin)))
+}
+
+await app.register(cors, {
+  origin: corsOriginHandler,
+  methods: ["POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  preflight: false,
+})
+
+await app.register(rateLimit, {
+  global: false,
+  keyGenerator(request) {
+    return request.ip
+  },
+})
+
+app.addHook("onRequest", async (_request, reply) => {
+  reply.header("Cache-Control", "no-store")
+  reply.header("X-Content-Type-Options", "nosniff")
+})
+
+async function requireAllowedOrigin(request, reply) {
   const origin = request.headers.origin
+
   if (!origin || !allowedOrigins.has(origin)) {
-    return false
+    return reply.code(403).send({ error: "Origin is not allowed." })
   }
-
-  response.setHeader("Access-Control-Allow-Origin", origin)
-  response.setHeader("Vary", "Origin")
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type")
-  return true
 }
 
-function sendJson(response, status, value) {
-  response.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff",
-  })
-  response.end(JSON.stringify(value))
-}
+app.get("/health", async () => ({ ok: true }))
 
-function isRateLimited(address) {
-  const now = Date.now()
-  const recentAttempts = (attemptsByAddress.get(address) || []).filter(
-    (timestamp) => now - timestamp < RATE_WINDOW_MS
-  )
-  recentAttempts.push(now)
-  attemptsByAddress.set(address, recentAttempts)
-  return recentAttempts.length > RATE_LIMIT
-}
+app.options(
+  "/api/visitors",
+  {
+    preHandler: requireAllowedOrigin,
+  },
+  async (_request, reply) => reply.code(204).send()
+)
 
-async function readJsonBody(request) {
-  let body = ""
-
-  for await (const chunk of request) {
-    body += chunk
-    if (Buffer.byteLength(body) > 4096) {
-      throw new Error("PAYLOAD_TOO_LARGE")
-    }
-  }
-
-  return JSON.parse(body)
-}
-
-const server = createServer(async (request, response) => {
-  const requestUrl = new URL(request.url || "/", "http://localhost")
-
-  if (requestUrl.pathname.includes("/health") && request.method === "GET") {
-    sendJson(response, 200, { ok: true })
-    return
-  }
-
-  if (requestUrl.pathname !== "/api/visitors") {
-    sendJson(response, 404, { error: "Not found." })
-    return
-  }
-
-  if (!applyCors(request, response)) {
-    sendJson(response, 403, { error: "Origin is not allowed." })
-    return
-  }
-
-  if (request.method === "OPTIONS") {
-    response.writeHead(204)
-    response.end()
-    return
-  }
-
-  if (request.method !== "POST") {
-    sendJson(response, 405, { error: "Method not allowed." })
-    return
-  }
-
-  if (!request.headers["content-type"]?.startsWith("application/json")) {
-    sendJson(response, 415, { error: "Content-Type must be application/json." })
-    return
-  }
-
-  const address = request.socket.remoteAddress || "unknown"
-  if (isRateLimited(address)) {
-    sendJson(response, 429, {
-      error: "Too many player registrations. Try again later.",
-    })
-    return
-  }
-
-  try {
-    const body = await readJsonBody(request)
+app.post(
+  "/api/visitors",
+  {
+    preHandler: requireAllowedOrigin,
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "10 minutes",
+      },
+    },
+  },
+  async (request, reply) => {
+    const body =
+      request.body && typeof request.body === "object" ? request.body : {}
     const characterName =
       typeof body.characterName === "string"
         ? body.characterName.normalize("NFKC").trim()
@@ -140,57 +111,91 @@ const server = createServer(async (request, response) => {
       characterName.length > 24 ||
       !/^[\p{L}\p{N} _.'-]+$/u.test(characterName)
     ) {
-      sendJson(response, 400, {
+      return reply.code(400).send({
         error: "Character name must be 2–24 valid characters.",
       })
-      return
     }
 
     if (role !== "visitor" && role !== "recruiter") {
-      sendJson(response, 400, {
+      return reply.code(400).send({
         error: "Role must be visitor or recruiter.",
       })
-      return
     }
 
-    const result = await collection.insertOne({
-      characterName,
-      role,
-      createdAt: new Date(),
-      source: "pixel-zombie-game",
-    })
+    try {
+      const result = await collection.insertOne({
+        characterName,
+        role,
+        createdAt: new Date(),
+        source: "pixel-zombie-game",
+      })
 
-    sendJson(response, 201, {
-      ok: true,
-      playerId: result.insertedId.toString(),
-    })
-  } catch (error) {
-    if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
-      sendJson(response, 413, { error: "Payload is too large." })
-      return
+      return reply.code(201).send({
+        ok: true,
+        playerId: result.insertedId.toString(),
+      })
+    } catch (error) {
+      request.log.error({ err: error }, "Visitor registration failed")
+      return reply.code(500).send({
+        error: "Could not save this player. Please try again.",
+      })
     }
+  }
+)
 
-    if (error instanceof SyntaxError) {
-      sendJson(response, 400, { error: "Request body must be valid JSON." })
-      return
-    }
+app.setNotFoundHandler(async (_request, reply) => {
+  return reply.code(404).send({ error: "Not found." })
+})
 
-    console.error("Visitor registration failed", error)
-    sendJson(response, 500, {
-      error: "Could not save this player. Please try again.",
+app.setErrorHandler(async (error, request, reply) => {
+  if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+    return reply.code(413).send({ error: "Payload is too large." })
+  }
+
+  if (error.code === "FST_ERR_CTP_INVALID_MEDIA_TYPE") {
+    return reply
+      .code(415)
+      .send({ error: "Content-Type must be application/json." })
+  }
+
+  if (error.statusCode === 400) {
+    return reply.code(400).send({ error: "Request body must be valid JSON." })
+  }
+
+  if (error.statusCode === 429) {
+    return reply.code(429).send({
+      error: "Too many player registrations. Try again later.",
     })
   }
+
+  request.log.error({ err: error }, "Unhandled request error")
+  return reply.code(500).send({ error: "Internal server error." })
 })
 
-server.listen(port, "0.0.0.0", () => {
-  console.log(`Visitor API listening on http://localhost:${port}`)
-})
-
-async function shutdown() {
-  server.close()
+app.addHook("onClose", async () => {
   await client.close()
-  process.exit(0)
+})
+
+await app.listen({ port, host: "0.0.0.0" })
+
+let shuttingDown = false
+
+async function shutdown(signal) {
+  if (shuttingDown) {
+    return
+  }
+
+  shuttingDown = true
+  app.log.info({ signal }, "Shutting down")
+
+  try {
+    await app.close()
+    process.exit(0)
+  } catch (error) {
+    app.log.error({ err: error }, "Graceful shutdown failed")
+    process.exit(1)
+  }
 }
 
-process.on("SIGINT", shutdown)
-process.on("SIGTERM", shutdown)
+process.on("SIGINT", () => shutdown("SIGINT"))
+process.on("SIGTERM", () => shutdown("SIGTERM"))

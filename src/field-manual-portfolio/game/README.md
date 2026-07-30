@@ -3,6 +3,8 @@
 The game registers a player through a server-side API before starting. The
 MongoDB connection string is never included in the browser bundle.
 
+The standalone API uses Fastify with the official CORS and rate-limit plugins.
+
 ## Local setup
 
 1. Copy the values from `.env.example` into the repository root `.env`.
