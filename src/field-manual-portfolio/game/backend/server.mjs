@@ -88,7 +88,7 @@ async function readJsonBody(request) {
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", "http://localhost")
 
-  if (requestUrl.pathname === "/health" && request.method === "GET") {
+  if (requestUrl.pathname.includes("/health") && request.method === "GET") {
     sendJson(response, 200, { ok: true })
     return
   }
