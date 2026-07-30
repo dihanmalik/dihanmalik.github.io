@@ -182,7 +182,7 @@ const server = createServer(async (request, response) => {
   }
 })
 
-server.listen(port, () => {
+server.listen(port, "0.0.0.0", () => {
   console.log(`Visitor API listening on http://localhost:${port}`)
 })
 
