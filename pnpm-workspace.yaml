@@ -1,4 +1,5 @@
-packages: []
+packages:
+  - "src/field-manual-portfolio/game/backend"
 
 allowBuilds:
   "@railway/cli": true

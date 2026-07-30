@@ -74,6 +74,10 @@ MongoDB connection string is never included in the browser bundle.
 Railway supplies `PORT` automatically. The included `railway.json` configures
 the start command, `/health` deployment check, and restart policy.
 
+The repository root also contains Railway configuration for GitHub-connected
+deployments. The backend is registered in `pnpm-workspace.yaml`, so a root
+`pnpm install` installs `mongodb` for the nested backend package.
+
 ## Deploying everything
 
 After the one-time setup, run:
