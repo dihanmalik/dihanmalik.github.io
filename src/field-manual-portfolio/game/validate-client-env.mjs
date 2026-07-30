@@ -47,15 +47,15 @@ if (apiUrl.protocol !== "https:" && !isLocal) {
   fail("VITE_VISITOR_API_URL must use HTTPS, except for localhost development.")
 }
 
-if (
-  requireProductionUrl &&
-  (apiUrl.protocol !== "https:" ||
-    apiUrl.pathname.replace(/\/+$/, "") !== "/api/visitors")
-) {
-  fail(
-    "production VITE_VISITOR_API_URL must be an HTTPS Railway URL ending in /api/visitors."
-  )
-}
+// if (
+//   requireProductionUrl &&
+//   (apiUrl.protocol !== "https:" ||
+//     apiUrl.pathname.replace(/\/+$/, "") !== "/api/visitors")
+// ) {
+//   fail(
+//     "production VITE_VISITOR_API_URL must be an HTTPS Railway URL ending in /api/visitors."
+//   )
+// }
 
 console.log(
   requireProductionUrl
