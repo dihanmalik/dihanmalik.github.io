@@ -1,7 +1,3 @@
-.manual-game-section {
-  background: color-mix(in oklab, var(--manual-accent) 7%, var(--manual-paper));
-}
-
 .manual-game-heading {
   padding: 5rem 1.25rem 3rem;
 }
