@@ -226,9 +226,23 @@
 }
 
 .manual-ai-core {
+  align-content: center;
+  gap: 0.25rem;
   color: var(--manual-accent-ink);
   background: var(--manual-accent);
   border-color: color-mix(in oklab, var(--manual-accent-ink) 35%, transparent);
+}
+
+.manual-ai-core img {
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0.65rem;
+}
+
+.manual-ai-core span {
+  font-size: 0.6rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
 }
 
 .manual-accent-text {
@@ -274,6 +288,29 @@
   background: var(--manual-accent);
 }
 
+.manual-toolkit-item {
+  gap: 0.65rem;
+}
+
+.manual-toolkit-logo {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+}
+
+.manual-toolkit-logo :is(img, svg) {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.manual-toolkit-separator {
+  padding-inline: 1.5rem;
+  opacity: 0.65;
+}
+
 .manual-motion-ready [data-manual-reveal] {
   opacity: 0;
   transform: translateY(2rem) rotate(0.2deg);
@@ -298,7 +335,7 @@
 
 .manual-crawl {
   width: max-content;
-  animation: manual-crawl 34s linear infinite;
+  animation: manual-crawl 68s linear infinite;
 }
 
 @keyframes manual-crawl {

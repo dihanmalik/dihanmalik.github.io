@@ -11,15 +11,17 @@ import {
   IconPlus,
 } from "@tabler/icons-react"
 
+import claudeCodeLogo from "@/assets/claudecode.svg?url&no-inline"
 import portrait from "@/assets/me4.png"
 import resume from "@/assets/CV_2026.pdf"
 import { useTheme } from "@/components/theme-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
 import { cn } from "@/lib/utils"
 
 import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
-import { optimizationNotes, toolkit, workEntries } from "./data"
+import { optimizationNotes, workEntries } from "./data"
 import { ZombieBatGame } from "./game/ZombieBatGame"
 import "./field-manual.css"
 
@@ -300,30 +302,30 @@ function Optimization() {
         <div
           data-manual-reveal
           style={revealDelay(0)}
-          className="manual-metric bg-background p-6"
+          className="group manual-metric bg-background p-6"
         >
           <p className="text-3xl font-semibold">Measure</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground group-hover:text-white">
             Runtime behavior · bundles · network · user flows
           </p>
         </div>
         <div
           data-manual-reveal
           style={revealDelay(1)}
-          className="manual-metric bg-background p-6"
+          className="group manual-metric bg-background p-6"
         >
           <p className="text-3xl font-semibold">Prioritize</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground group-hover:text-white">
             User impact · frequency · engineering cost
           </p>
         </div>
         <div
           data-manual-reveal
           style={revealDelay(2)}
-          className="manual-metric bg-background p-6"
+          className="group manual-metric bg-background p-6"
         >
           <p className="text-3xl font-semibold">Verify</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground group-hover:text-white">
             Before/after evidence · regression coverage
           </p>
         </div>
@@ -429,9 +431,8 @@ function AiPractice() {
         >
           <div className="absolute top-1/2 left-1/2 size-52 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed" />
           <div className="manual-map-node manual-ai-core absolute top-1/2 left-1/2 grid size-24 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border text-center text-xs font-semibold">
-            Claude
-            <br />
-            Code
+            <img src={claudeCodeLogo} alt="" aria-hidden="true" />
+            <span className="relative bottom-2">Claude Code</span>
           </div>
           <div className="manual-map-node manual-node-agents border bg-background px-4 py-2 text-xs">
             Agents
@@ -485,6 +486,11 @@ function AiPractice() {
 }
 
 function Toolkit() {
+  const { theme } = useTheme()
+  const isDarkMode =
+    theme === "dark" ||
+    (theme === "system" && document.documentElement.classList.contains("dark"))
+  const toolkit = getTechLogos(isDarkMode)
   const repeated = [...toolkit, ...toolkit]
 
   return (
@@ -494,11 +500,18 @@ function Toolkit() {
     >
       <div className="manual-crawl flex items-center">
         {repeated.map((item, index) => (
-          <div key={`${item}-${index}`} className="flex items-center">
-            <span className="px-7 text-xs tracking-[0.16em] whitespace-nowrap uppercase">
-              {item}
+          <div
+            key={`${item.title}-${index}`}
+            className="manual-toolkit-item flex items-center"
+            aria-hidden={index >= toolkit.length}
+          >
+            <span className="manual-toolkit-logo" aria-hidden="true">
+              {item.node}
             </span>
-            <span>×</span>
+            <span className="text-xs tracking-[0.16em] whitespace-nowrap uppercase">
+              {item.title}
+            </span>
+            <span className="manual-toolkit-separator">×</span>
           </div>
         ))}
       </div>

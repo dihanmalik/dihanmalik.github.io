@@ -68,20 +68,3 @@ export const optimizationNotes = [
     copy: "Pair measurement with repeatable checks so performance stays healthy after the first optimization pass.",
   },
 ]
-
-export const toolkit = [
-  "React",
-  "TypeScript",
-  "Next.js",
-  "MobX",
-  "Redux",
-  "TanStack Query",
-  "Tailwind CSS",
-  "Storybook",
-  "Jest",
-  "Cypress",
-  "Node.js",
-  "Fastify",
-  "PostgreSQL",
-  "Docker",
-]
