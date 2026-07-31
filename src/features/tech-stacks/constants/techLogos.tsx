@@ -4,10 +4,8 @@ import BitbucketLogo from "@/assets/bitbucket.svg?url&no-inline"
 import CSS3Logo from "@/assets/css3.svg?url&no-inline"
 import CypressLogo from "@/assets/cypress.svg?url&no-inline"
 import DockerLogo from "@/assets/docker.svg?url&no-inline"
-import FastifyDarkLogo from "@/assets/fastify-dark.svg?url&no-inline"
 import FastifyLogo from "@/assets/fastify.svg?url&no-inline"
 import GitLogo from "@/assets/git.svg?url&no-inline"
-import GithubDarkLogo from "@/assets/github-dark.svg?url&no-inline"
 import GithubLogo from "@/assets/github.svg?url&no-inline"
 import HTMLLogo from "@/assets/html5.svg?url&no-inline"
 import JestLogo from "@/assets/jest.svg?url&no-inline"
@@ -19,27 +17,24 @@ import MySQLLogo from "@/assets/mysql.svg?url&no-inline"
 import NextJSLogo from "@/assets/nextjs.svg?url&no-inline"
 import NodeJSLogo from "@/assets/nodejs.svg?url&no-inline"
 import PostgreSQLLogo from "@/assets/postgre.svg?url&no-inline"
-import PrismaDarkLogo from "@/assets/prisma-dark.svg?url&no-inline"
 import PrismaLogo from "@/assets/prisma.svg?url&no-inline"
 import ReactLogo from "@/assets/react-logo.svg?url&no-inline"
 import ReactQueryLogo from "@/assets/react-query.svg?url&no-inline"
 import RedisLogo from "@/assets/redis.svg?url&no-inline"
 import ReduxLogo from "@/assets/redux.svg?url&no-inline"
-import RenderDarkLogo from "@/assets/render-dark.svg?url&no-inline"
 import RenderLogo from "@/assets/render.svg?url&no-inline"
 import ShadCNLogo from "@/assets/shadcn-ui.svg?url&no-inline"
 import StorybookLogo from "@/assets/storybook.svg?url&no-inline"
 import SupabaseLogo from "@/assets/supabase.svg?url&no-inline"
 import TailwindCSSLogo from "@/assets/tailwindcss.svg?url&no-inline"
 import TSLogo from "@/assets/ts-logo-512.svg?url&no-inline"
-import VercelDarkLogo from "@/assets/vercel-dark.svg?url&no-inline"
 import VercelLogo from "@/assets/vercel.svg?url&no-inline"
 import ViteLogo from "@/assets/vite.svg?url&no-inline"
 import ZustandLogo from "@/assets/zustand.svg?url&no-inline"
 
 const logo = (src: string) => <img src={src} alt="" loading="lazy" />
 
-export const getTechLogos = (isDarkMode: boolean) => [
+export const getTechLogos = () => [
   { node: logo(ReactLogo), title: "React", href: "https://react.dev" },
 
   { node: logo(NextJSLogo), title: "NextJS", href: "https://nextjs.org/" },
@@ -124,7 +119,7 @@ export const getTechLogos = (isDarkMode: boolean) => [
     href: "https://git-scm.com/",
   },
   {
-    node: logo(isDarkMode ? GithubDarkLogo : GithubLogo),
+    node: logo(GithubLogo),
     title: "Github",
     href: "https://github.com/",
   },
@@ -144,7 +139,7 @@ export const getTechLogos = (isDarkMode: boolean) => [
     href: "https://nodejs.org/",
   },
   {
-    node: logo(isDarkMode ? FastifyDarkLogo : FastifyLogo),
+    node: logo(FastifyLogo),
     title: "Fastify",
     href: "https://www.fastify.io/",
   },
@@ -159,17 +154,17 @@ export const getTechLogos = (isDarkMode: boolean) => [
     href: "https://zustand-demo.pmnd.rs/",
   },
   {
-    node: logo(isDarkMode ? PrismaDarkLogo : PrismaLogo),
+    node: logo(PrismaLogo),
     title: "Prisma",
     href: "https://www.prisma.io/",
   },
   {
-    node: logo(isDarkMode ? VercelDarkLogo : VercelLogo),
+    node: logo(VercelLogo),
     title: "Vercel",
     href: "https://vercel.com/",
   },
   {
-    node: logo(isDarkMode ? RenderDarkLogo : RenderLogo),
+    node: logo(RenderLogo),
     title: "Render",
     href: "https://render.com/",
   },

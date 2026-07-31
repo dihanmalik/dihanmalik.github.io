@@ -21,7 +21,7 @@ import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
 import { cn } from "@/lib/utils"
 
 import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
-import { optimizationNotes, workEntries } from "./data"
+import { educationEntries, optimizationNotes, workEntries } from "./data"
 import { ZombieBatGame } from "./game/ZombieBatGame"
 import "./field-manual.css"
 
@@ -29,9 +29,10 @@ const navItems = [
   ["00", "Introduction", "#introduction"],
   ["01", "Optimization", "#optimization"],
   ["02", "Work index", "#work"],
-  ["03", "AI practice", "#ai-practice"],
-  ["04", "Night shift", "#game"],
-  ["05", "Contact", "#contact"],
+  ["03", "Education", "#education"],
+  ["04", "AI practice", "#ai-practice"],
+  ["05", "Night shift", "#game"],
+  ["06", "Contact", "#contact"],
 ]
 
 function useScrollReveals() {
@@ -363,10 +364,12 @@ function WorkIndex() {
                 {String(index + 1).padStart(2, "0")}
               </span>
               <span className="text-xs">{entry.period}</span>
-              <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {entry.company}
-              </span>
-              <IconPlus className="manual-index-plus" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {entry.company}
+                </span>
+                <IconPlus className="manual-index-plus" />
+              </div>
             </summary>
             <div className="grid gap-7 pb-8 sm:ml-44 sm:grid-cols-[1fr_auto]">
               <div>
@@ -401,13 +404,79 @@ function WorkIndex() {
   )
 }
 
+function Education() {
+  return (
+    <section
+      id="education"
+      className="scroll-mt-8 px-5 py-20 !pb-0 sm:px-10 sm:py-28"
+    >
+      <MarginLabel>03 / Education background</MarginLabel>
+
+      <div
+        data-manual-reveal
+        className="mt-12 grid gap-8 lg:grid-cols-[0.72fr_1.28fr]"
+      >
+        <div>
+          <p className="font-serif text-xl text-muted-foreground italic">
+            The foundation
+          </p>
+          <h2 className="mt-5 max-w-lg text-5xl leading-[0.98] font-semibold tracking-tight sm:text-7xl">
+            Study, build, repeat.
+          </h2>
+        </div>
+
+        <ol className="border-t">
+          {educationEntries.map((entry, index) => (
+            <li
+              key={entry.title}
+              data-manual-reveal="right"
+              style={revealDelay(index)}
+              className="grid gap-5 border-b py-7 sm:grid-cols-[7rem_1fr]"
+            >
+              <p className="text-xs text-muted-foreground">{entry.period}</p>
+              <div>
+                <div className="flex items-start justify-between gap-5">
+                  <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                    {entry.title}
+                  </h3>
+                  {entry.href ? (
+                    <a
+                      href={entry.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-foreground hover:text-background"
+                      aria-label={`Visit ${entry.title}`}
+                    >
+                      <IconArrowUpRight />
+                    </a>
+                  ) : null}
+                </div>
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  {entry.description}
+                </p>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+                  {entry.highlights.map((highlight) => (
+                    <span key={highlight} className="text-xs">
+                      / {highlight}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
 function AiPractice() {
   return (
     <section
       id="ai-practice"
       className="scroll-mt-8 px-5 py-20 sm:px-10 sm:py-28"
     >
-      <MarginLabel>03 / Extending the stack</MarginLabel>
+      <MarginLabel>04 / Extending the stack</MarginLabel>
 
       <div className="mt-12 grid gap-12 xl:grid-cols-[1fr_1.1fr]">
         <div data-manual-reveal="left">
@@ -486,11 +555,7 @@ function AiPractice() {
 }
 
 function Toolkit() {
-  const { theme } = useTheme()
-  const isDarkMode =
-    theme === "dark" ||
-    (theme === "system" && document.documentElement.classList.contains("dark"))
-  const toolkit = getTechLogos(isDarkMode)
+  const toolkit = getTechLogos()
   const repeated = [...toolkit, ...toolkit]
 
   return (
@@ -528,7 +593,7 @@ function Contact() {
       >
         <div>
           <p className="text-xs font-semibold tracking-[0.16em] uppercase">
-            05 / Open channel
+            06 / Open channel
           </p>
           <h2 className="mt-8 max-w-4xl text-5xl leading-[0.92] font-semibold tracking-tight sm:text-8xl">
             A good opportunity deserves a conversation.
@@ -608,6 +673,7 @@ export default function FieldManualPortfolio() {
             <Introduction />
             <Optimization />
             <WorkIndex />
+            <Education />
             <AiPractice />
             <Toolkit />
             <ZombieBatGame />

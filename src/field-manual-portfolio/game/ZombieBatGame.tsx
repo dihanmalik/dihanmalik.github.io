@@ -861,7 +861,7 @@ export const ZombieBatGame = observer(function ZombieBatGame() {
     <section id="game" className="manual-game-section scroll-mt-8 border-t">
       <div className="manual-game-heading">
         <p className="manual-rule-text">
-          <span>04 / After-hours protocol</span>
+          <span>05 / After-hours protocol</span>
         </p>
         <div className="manual-game-intro">
           <h2>Last one in the office.</h2>

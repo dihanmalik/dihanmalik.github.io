@@ -7,6 +7,14 @@ export type WorkEntry = {
   href: string
 }
 
+export type EducationEntry = {
+  title: string
+  period: string
+  description: string
+  highlights: string[]
+  href?: string
+}
+
 export const workEntries: WorkEntry[] = [
   {
     company: "Amlak International",
@@ -47,6 +55,44 @@ export const workEntries: WorkEntry[] = [
     note: "Built web and mobile products, created reusable frontend foundations, and led teams of three to six developers through reviews and mentoring.",
     focus: ["Team lead", "React Native", "Reusable systems", "Mentoring"],
     href: "https://www.invento.com/",
+  },
+]
+
+export const educationEntries: EducationEntry[] = [
+  {
+    title: "First Asia Institute of Technology and Humanities",
+    period: "2012—2016",
+    description:
+      "Graduated with a Bachelor of Science in Computer Science. Participated in the two-day PLDT Hackathon 2015, creating a system solution for a local government unit.",
+    highlights: [
+      "Dean's Lister ×2",
+      "John von Neumann Medal nominee",
+      "Best Thesis of SY 2016 nominee",
+    ],
+    href: "https://www.firstasia.edu.ph/",
+  },
+  {
+    title: "PCCI-Batangas sponsored thesis",
+    period: "2015—2016",
+    description:
+      "Built a content management system for the Philippine Chamber of Commerce and Industry in Batangas, using a weighted PageRank algorithm to help people locate nearby services across the province.",
+    highlights: [
+      "JavaScript",
+      "jQuery",
+      "HTML",
+      "CSS",
+      "Semantic UI",
+      "Laravel",
+      "MySQL",
+    ],
+    href: "http://pcci-bats.tk/",
+  },
+  {
+    title: "Summer internship",
+    period: "SY 2015",
+    description:
+      "Collaborated in a four-person team on Pre-Jordan, an electronic baptismal management system for a church in Balele, Tanauan City, and E-Museum, a virtual showcase of Batangas culture and history.",
+    highlights: ["C#", "VB.NET", "Unity 3D", "Blender"],
   },
 ]
 
