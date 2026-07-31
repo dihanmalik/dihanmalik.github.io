@@ -10,9 +10,7 @@ export const TechStackSection = () => {
   const [carouselWidth, setCarouselWidth] = React.useState(window.innerWidth)
   const { theme } = useTheme()
   const techLogos = useMemo(() => {
-    return getTechLogos(
-      theme === "dark" || (theme === "system" && getSystemTheme() === "dark")
-    )
+    return getTechLogos()
   }, [theme])
 
   useLayoutEffect(() => {
