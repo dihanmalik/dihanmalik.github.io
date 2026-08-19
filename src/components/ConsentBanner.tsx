@@ -13,15 +13,14 @@ import {
 
 export function ConsentBanner() {
   const [consent, setConsent] = useState(getTrackingConsent)
-  const [audienceType, setAudienceType] = useState<AudienceType | null>(
-    getVisitorAudienceType
+  const [audienceType, setAudienceType] = useState<AudienceType>(
+    () => getVisitorAudienceType() ?? "visitor"
   )
 
   if (consent) return null
 
   const choose = (next: TrackingConsent) => {
-    if (next === "granted" && !audienceType) return
-    setTrackingConsent(next, audienceType ?? undefined)
+    setTrackingConsent(next, audienceType)
     setConsent(next)
   }
 
@@ -60,13 +59,9 @@ export function ConsentBanner() {
           <Button variant="outline" onClick={() => choose("denied")}>
             No crumbs, thanks
           </Button>
-          <Button
-            variant="accent"
-            onClick={() => choose("granted")}
-            disabled={!audienceType}
-          >
+          <Button variant="accent" onClick={() => choose("granted")}>
             <IconShieldCheck data-icon="inline-start" />
-            {audienceType ? "Yes, remember me" : "Choose your visit type"}
+            Yes, remember me
           </Button>
         </div>
       </div>
