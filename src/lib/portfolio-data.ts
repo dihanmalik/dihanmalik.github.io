@@ -17,6 +17,7 @@ import { firestore, getAnonymousUser, getSignedInOwner } from "@/lib/firebase"
 export const OWNER_DEVICE_KEY = "portfolio-owner-device"
 export const TRACKING_CONSENT_KEY = "portfolio-tracking-consent"
 export const TRACKING_CONSENT_EVENT = "portfolio-tracking-consent-change"
+export const VISITOR_AUDIENCE_TYPE_KEY = "portfolio-visitor-audience-type"
 const VISIT_SESSION_KEY = "portfolio-visit-recorded"
 export const WEBSITE_RATING_EVENT = "portfolio-website-rating-change"
 
@@ -39,6 +40,7 @@ export type LeaderboardEntry = {
 
 export type VisitorRecord = {
   uid: string
+  audienceType?: AudienceType
   firstPath: string
   lastPath: string
   firstSeenAt: Timestamp
@@ -46,6 +48,13 @@ export type VisitorRecord = {
   visitCount: number
   lastVisitDurationSeconds?: number
   totalDurationSeconds?: number
+}
+
+export type WebsiteRatingRecord = {
+  uid: string
+  rating: number
+  audienceType: AudienceType
+  createdAt?: Timestamp
 }
 
 export type WebsiteRatingSummary = {
@@ -63,7 +72,18 @@ export function getTrackingConsent(): TrackingConsent | null {
   return value === "granted" || value === "denied" ? value : null
 }
 
-export function setTrackingConsent(consent: TrackingConsent) {
+export function getVisitorAudienceType(): AudienceType | null {
+  const value = localStorage.getItem(VISITOR_AUDIENCE_TYPE_KEY)
+  return value === "visitor" || value === "recruiter" ? value : null
+}
+
+export function setTrackingConsent(
+  consent: TrackingConsent,
+  audienceType?: AudienceType
+) {
+  if (consent === "granted" && audienceType) {
+    localStorage.setItem(VISITOR_AUDIENCE_TYPE_KEY, audienceType)
+  }
   localStorage.setItem(TRACKING_CONSENT_KEY, consent)
   if (consent === "denied") sessionStorage.removeItem(VISIT_SESSION_KEY)
   window.dispatchEvent(new CustomEvent(TRACKING_CONSENT_EVENT))
@@ -94,6 +114,7 @@ export async function recordVisit(path: string) {
 
   try {
     const user = await getAnonymousUser()
+    const audienceType = getVisitorAudienceType() ?? "visitor"
     const visitorRef = doc(firestore, "visitors", user.uid)
     const statsRef = doc(firestore, "siteStats", "general")
 
@@ -105,6 +126,7 @@ export async function recordVisit(path: string) {
 
       if (visitor.exists()) {
         transaction.update(visitorRef, {
+          audienceType,
           lastPath: path,
           lastSeenAt: serverTimestamp(),
           visitCount: Number(visitor.data().visitCount ?? 0) + 1,
@@ -118,6 +140,7 @@ export async function recordVisit(path: string) {
 
       transaction.set(visitorRef, {
         uid: user.uid,
+        audienceType,
         firstPath: path,
         lastPath: path,
         firstSeenAt: serverTimestamp(),
@@ -161,6 +184,7 @@ export async function recordVisitDuration(
 
     const previous = visitor.data()
     transaction.update(visitorRef, {
+      audienceType: getVisitorAudienceType() ?? "visitor",
       lastPath: path,
       lastSeenAt: serverTimestamp(),
       visitCount: Number(previous.visitCount ?? 1),
@@ -282,6 +306,20 @@ export async function getLeaderboard(
   return snapshot.docs.map((entry) => entry.data() as LeaderboardEntry)
 }
 
+export async function getOwnerLeaderboard(gameId: GameId) {
+  if (!isOwnerDevice() || !(await getSignedInOwner())) {
+    throw new Error("Owner verification is required.")
+  }
+
+  const entriesQuery = query(
+    collection(firestore, "leaderboards", gameId, "entries"),
+    orderBy("bestScore", "desc"),
+    limit(100)
+  )
+  const snapshot = await getDocs(entriesQuery)
+  return snapshot.docs.map((entry) => entry.data() as LeaderboardEntry)
+}
+
 export async function getVisitorList() {
   if (!isOwnerDevice() || !(await getSignedInOwner())) {
     throw new Error("Owner verification is required.")
@@ -294,6 +332,20 @@ export async function getVisitorList() {
   )
   const snapshot = await getDocs(visitorsQuery)
   return snapshot.docs.map((visitor) => visitor.data() as VisitorRecord)
+}
+
+export async function getOwnerWebsiteRatings() {
+  if (!isOwnerDevice() || !(await getSignedInOwner())) {
+    throw new Error("Owner verification is required.")
+  }
+
+  const ratingsQuery = query(
+    collection(firestore, "websiteRatings"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  )
+  const snapshot = await getDocs(ratingsQuery)
+  return snapshot.docs.map((rating) => rating.data() as WebsiteRatingRecord)
 }
 
 export async function hasSubmittedRating() {

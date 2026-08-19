@@ -1,17 +1,24 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { AudienceTypePicker } from "@/components/ui/custom/AudienceTypePicker"
 import {
+  getVisitorAudienceType,
   getTrackingConsent,
   setTrackingConsent,
+  type AudienceType,
   type TrackingConsent,
 } from "@/lib/portfolio-data"
 
 export function PrivacyRoute() {
   const [consent, setConsent] = useState(getTrackingConsent)
+  const [audienceType, setAudienceType] = useState<AudienceType | null>(
+    getVisitorAudienceType
+  )
 
   const choose = (next: TrackingConsent) => {
-    setTrackingConsent(next)
+    if (next === "granted" && !audienceType) return
+    setTrackingConsent(next, audienceType ?? undefined)
     setConsent(next)
   }
 
@@ -37,9 +44,10 @@ export function PrivacyRoute() {
             With your permission, Firebase creates an anonymous browser account.
             It stores visit timestamps, paths, visit count, active time on the
             site, game attempts and scores, and a random account ID. Time is
-            counted while this site is visible in the browser. It does not
-            intentionally store your IP address, device fingerprint, email, or
-            real identity.
+            counted while this site is visible in the browser. Your selected
+            visitor or recruiter type is stored with the visitor record. It does
+            not intentionally store your IP address, device fingerprint, email,
+            or real identity.
           </p>
           <p className="leading-relaxed text-muted-foreground">
             If you explicitly join a leaderboard, the nickname and
@@ -67,11 +75,20 @@ export function PrivacyRoute() {
             and progress writes; games remain playable. Submitting a leaderboard
             score or rating is a separate action you choose at that moment.
           </p>
+          <AudienceTypePicker
+            value={audienceType}
+            onValueChange={setAudienceType}
+            legend="What brings you to the portfolio?"
+          />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => choose("denied")}>
               Decline tracking
             </Button>
-            <Button variant="outline" onClick={() => choose("granted")}>
+            <Button
+              variant="outline"
+              onClick={() => choose("granted")}
+              disabled={!audienceType}
+            >
               Allow tracking
             </Button>
           </div>

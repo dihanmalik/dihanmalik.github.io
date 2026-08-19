@@ -108,6 +108,7 @@ service cloud.firestore {
       allow create: if owns(uid)
         && request.resource.data.keys().hasOnly([
           "uid",
+          "audienceType",
           "firstPath",
           "lastPath",
           "firstSeenAt",
@@ -117,6 +118,7 @@ service cloud.firestore {
           "totalDurationSeconds"
         ])
         && request.resource.data.uid == uid
+        && validAudience(request.resource.data.audienceType)
         && validPath(request.resource.data.firstPath)
         && validPath(request.resource.data.lastPath)
         && request.resource.data.firstSeenAt == request.time
@@ -130,11 +132,13 @@ service cloud.firestore {
           "lastSeenAt",
           "visitCount",
           "lastVisitDurationSeconds",
-          "totalDurationSeconds"
+          "totalDurationSeconds",
+          "audienceType"
         ])
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.firstPath == resource.data.firstPath
         && request.resource.data.firstSeenAt == resource.data.firstSeenAt
+        && validAudience(request.resource.data.audienceType)
         && validPath(request.resource.data.lastPath)
         && request.resource.data.lastSeenAt == request.time
         && request.resource.data.lastVisitDurationSeconds is int
@@ -311,7 +315,7 @@ service cloud.firestore {
     }
 
     match /websiteRatings/{uid} {
-      allow read: if owns(uid);
+      allow read: if owns(uid) || isPortfolioOwner();
       allow create: if owns(uid)
         && request.resource.data.keys().hasOnly([
           "uid",

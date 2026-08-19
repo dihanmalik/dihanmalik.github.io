@@ -30,6 +30,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
+  getVisitorAudienceType,
   getWebsiteRatingSummary,
   hasSubmittedRating,
   submitWebsiteRating,
@@ -119,7 +120,9 @@ export function WebsiteRatingForm({
   statusClassName,
 }: WebsiteRatingFormProps) {
   const [rating, setRating] = useState(5)
-  const [audienceType, setAudienceType] = useState<AudienceType>("visitor")
+  const [audienceType, setAudienceType] = useState<AudienceType>(
+    () => getVisitorAudienceType() ?? "visitor"
+  )
   const [checking, setChecking] = useState(true)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -295,13 +298,23 @@ export function WebsiteRatingForm({
   )
 }
 
-export function WebsiteRatingDialog() {
+export function WebsiteRatingDialog({
+  triggerClassName,
+}: {
+  triggerClassName?: string
+}) {
   const summary = useWebsiteRatingSummary()
 
   return (
     <Dialog>
       <DialogTrigger
-        render={<Button variant="outline" size="lg" className="rounded-full" />}
+        render={
+          <Button
+            variant="outline"
+            size="lg"
+            className={cn("rounded-full", triggerClassName)}
+          />
+        }
       >
         <IconMessageStar data-icon="inline-start" />
         Rate this website · {summary.displayRating.toFixed(1)} ★

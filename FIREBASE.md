@@ -13,7 +13,8 @@ changed at `/privacy`.
 - `siteStats/ratings` stores the public rating count and total. The UI displays
   a friendly 5.0 starting score through the first 10 ratings, then switches to
   the actual average beginning with rating 11.
-- `visitors/{anonymousAuthUid}` stores first/last visit and visit count.
+- `visitors/{anonymousAuthUid}` stores the selected visitor/recruiter type,
+  first/last visit, visit count, and active time.
 - `playerProgress/{uid_gameId}` stores totals and the current best score.
 - `playerProgress/{uid_gameId}/runs/{runId}` stores each completed replay.
 - `leaderboards/{gameId}/entries/{uid}` stores one best-score entry per game
@@ -37,7 +38,12 @@ The same route includes the private visitor list. The local device flag only
 reveals the owner controls; reading all visitor records additionally requires
 Google sign-in as `abdulmaliknahid@gmail.com`. Firestore enforces this email and
 verified-email check server-side. `dihanmalik.github.io` is registered as an
-authorized Firebase Authentication domain.
+authorized Firebase Authentication domain. `localhost` is also authorized for
+local Google sign-in development, including `http://localhost:5176`; Firebase
+Authentication authorizes the hostname rather than an individual port.
+
+The private owner section also reads up to 100 recent website ratings, including
+their anonymous browser ID, rating, visitor/recruiter type, and submission time.
 
 ## Firebase deployment
 

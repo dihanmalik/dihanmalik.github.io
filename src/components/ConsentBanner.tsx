@@ -2,19 +2,26 @@ import { useState } from "react"
 import { IconCookie, IconShieldCheck } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
+import { AudienceTypePicker } from "@/components/ui/custom/AudienceTypePicker"
 import {
+  getVisitorAudienceType,
   getTrackingConsent,
   setTrackingConsent,
+  type AudienceType,
   type TrackingConsent,
 } from "@/lib/portfolio-data"
 
 export function ConsentBanner() {
   const [consent, setConsent] = useState(getTrackingConsent)
+  const [audienceType, setAudienceType] = useState<AudienceType | null>(
+    getVisitorAudienceType
+  )
 
   if (consent) return null
 
   const choose = (next: TrackingConsent) => {
-    setTrackingConsent(next)
+    if (next === "granted" && !audienceType) return
+    setTrackingConsent(next, audienceType ?? undefined)
     setConsent(next)
   }
 
@@ -40,6 +47,11 @@ export function ConsentBanner() {
           </p>
         </div>
       </div>
+      <AudienceTypePicker
+        value={audienceType}
+        onValueChange={setAudienceType}
+        legend="Before I save anything, what brings you here?"
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <a className="text-sm underline underline-offset-4" href="/privacy">
           What gets saved?
@@ -48,9 +60,13 @@ export function ConsentBanner() {
           <Button variant="outline" onClick={() => choose("denied")}>
             No crumbs, thanks
           </Button>
-          <Button variant="outline" onClick={() => choose("granted")}>
+          <Button
+            variant="outline"
+            onClick={() => choose("granted")}
+            disabled={!audienceType}
+          >
             <IconShieldCheck data-icon="inline-start" />
-            Yes, remember me
+            {audienceType ? "Yes, remember me" : "Choose your visit type"}
           </Button>
         </div>
       </div>

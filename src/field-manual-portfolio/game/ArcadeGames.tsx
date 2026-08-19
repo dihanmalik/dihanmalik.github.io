@@ -2,11 +2,13 @@ import { useState } from "react"
 import {
   IconPlayerPlayFilled,
   IconRocket,
+  IconSparkles,
   IconSkull,
 } from "@tabler/icons-react"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 import "./arcade-games.css"
 
@@ -18,7 +20,9 @@ const games = {
     kicker: "01 / Monochrome shooter",
     title: "Nothing but white pixels and incoming trouble.",
     description:
-      "Auto-fire through endless formations, collect combat power-ups, climb levels, and survive bosses at escalating score thresholds.",
+      "Jump into the pilot seat, collect wild power-ups, climb through the levels, and see how long you can hold off the next boss.",
+    collaboration:
+      "I shaped the combat loop, progression, bosses, interface, sound, and leaderboard experience.",
     icon: IconRocket,
   },
   zombie: {
@@ -26,7 +30,9 @@ const games = {
     kicker: "02 / Office survival",
     title: "Last one in the office.",
     description:
-      "Sign the night log, grab the baseball bat, and keep the build alive while increasingly rude zombies close in.",
+      "Clock in for a delightfully terrible night, grab whatever works as a weapon, and survive the office with your loyal dog beside you.",
+    collaboration:
+      "I directed the survival loop, weapons, zombie behavior, dog companion, sound, and leaderboard experience.",
     icon: IconSkull,
   },
 } satisfies Record<
@@ -36,6 +42,7 @@ const games = {
     kicker: string
     title: string
     description: string
+    collaboration: string
     icon: typeof IconRocket
   }
 >
@@ -49,11 +56,22 @@ export function ArcadeGames() {
         <span>05 / After-hours arcade</span>
       </p>
       <div className="manual-arcade-heading">
-        <h2>Choose your shift.</h2>
-        <p>
-          Two compact experiments, rebuilt as fullscreen arcade sessions for
-          keyboard and touch.
-        </p>
+        <h2>A little arcade break?</h2>
+        <div className="manual-arcade-intro">
+          <p>
+            I dreamed up and built these two fullscreen games with an AI
+            engineering companion. Pick one, have fun, and see if you can top
+            the leaderboard.
+          </p>
+          <p className="manual-arcade-collaboration">
+            <IconSparkles aria-hidden="true" />
+            <span>
+              <strong>Human-led, AI-assisted.</strong> I owned the ideas,
+              direction, gameplay decisions, and final polish while AI helped me
+              explore and iterate faster.
+            </span>
+          </p>
+        </div>
       </div>
 
       <Tabs
@@ -81,24 +99,28 @@ export function ArcadeGames() {
                 <p>{entry.kicker}</p>
                 <h3>{entry.title}</h3>
                 <span>{entry.description}</span>
-                <Button
-                  size="lg"
-                  render={
-                    <a
-                      href={
-                        id === "space"
-                          ? "/games/void-patrol"
-                          : "/games/night-shift"
-                      }
-                    />
+                <p className="manual-arcade-built-with">
+                  <IconSparkles aria-hidden="true" />
+                  <span>
+                    <strong>Created with an AI companion.</strong>{" "}
+                    {entry.collaboration}
+                  </span>
+                </p>
+                <a
+                  href={
+                    id === "space" ? "/games/void-patrol" : "/games/night-shift"
                   }
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "manual-arcade-play-button"
+                  )}
                 >
                   <IconPlayerPlayFilled data-icon="inline-start" />
-                  Open game
-                </Button>
+                  Play {entry.label}
+                </a>
               </div>
               <div className="manual-arcade-preview" aria-hidden="true">
-                <span>NA/10 ARCADE</span>
+                <span>DIHAN + AI ARCADE</span>
                 <EntryIcon />
                 <strong>{entry.label}</strong>
                 <small>

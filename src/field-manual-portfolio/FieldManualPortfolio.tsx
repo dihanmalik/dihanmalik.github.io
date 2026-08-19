@@ -9,7 +9,10 @@ import {
   IconArrowUpRight,
   IconBrandGithub,
   IconBrandLinkedin,
+  IconBrandTiktok,
+  IconCheck,
   IconCircleFilled,
+  IconCopy,
   IconDownload,
   IconMail,
   IconPlus,
@@ -23,14 +26,16 @@ import RotatingText from "@/components/RotatingText"
 import type { RotatingTextRef } from "@/components/RotatingText"
 import { WebsiteRatingDialog } from "@/components/WebsiteRating"
 import { useTheme } from "@/components/theme-provider"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
+import { isOwnerDevice } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
 import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
 import { educationEntries, optimizationNotes, workEntries } from "./data"
 import { ArcadeGames } from "./game/ArcadeGames"
+import { OwnerInsights } from "./OwnerInsights"
 import "./field-manual.css"
 
 const navItems = [
@@ -40,6 +45,7 @@ const navItems = [
   ["03", "Education", "#education"],
   ["04", "AI practice", "#ai-practice"],
   ["05", "Arcade", "#game"],
+  ["★", "Owner dashboard", "#owner-dashboard"],
   ["06", "Contact", "#contact"],
   ["↗", "Explore in 3D", "/explore"],
 ]
@@ -57,6 +63,7 @@ const introductionWordPairs = [
 ] as const
 const builtWords = introductionWordPairs.map(([built]) => `${built},`)
 const tunedWords = introductionWordPairs.map(([, tuned]) => `${tuned}.`)
+const contactNumber = "+63 9154960703"
 
 function useActiveManualSection() {
   const [activeSection, setActiveSection] = useState("introduction")
@@ -256,8 +263,11 @@ function FieldManualThemeToggle({ className }: { className?: string }) {
   )
 }
 
-function Sidebar() {
+function Sidebar({ ownerDevice }: { ownerDevice: boolean }) {
   const activeSection = useActiveManualSection()
+  const visibleNavItems = navItems.filter(
+    ([, , href]) => href !== "#owner-dashboard" || ownerDevice
+  )
 
   return (
     <aside className="hidden border-r lg:block">
@@ -272,7 +282,7 @@ function Sidebar() {
         </a>
 
         <nav className="mt-24 flex flex-col gap-4" aria-label="Page index">
-          {navItems.map(([number, label, href]) => {
+          {visibleNavItems.map(([number, label, href]) => {
             const sectionId = href.startsWith("#") ? href.slice(1) : null
             const isActive = sectionId === activeSection
 
@@ -367,22 +377,24 @@ function Introduction() {
             aria-label={`Built to be ${builtWord}, tuned to be ${tunedWord}.`}
           >
             <span aria-hidden="true">
-              Built to be{" "}
-              <em className="manual-rolling-word">
-                <RotatingText
-                  texts={builtWords}
-                  rotationInterval={5_000}
-                  staggerDuration={0.035}
-                  animatePresenceMode="sync"
-                  mainClassName="manual-rotating-text"
-                  onNext={(index) => {
-                    setWordPairIndex(index)
-                    tunedWordRef.current?.jumpTo(index)
-                  }}
-                />
-              </em>
+              <span className="block">Built to be</span>
               <span className="block">
-                tuned to be{" "}
+                <em className="manual-rolling-word">
+                  <RotatingText
+                    texts={builtWords}
+                    rotationInterval={5_000}
+                    staggerDuration={0.035}
+                    animatePresenceMode="sync"
+                    mainClassName="manual-rotating-text"
+                    onNext={(index) => {
+                      setWordPairIndex(index)
+                      tunedWordRef.current?.jumpTo(index)
+                    }}
+                  />
+                </em>
+              </span>
+              <span className="block">tuned to be</span>
+              <span className="block">
                 <em className="manual-rolling-word">
                   <RotatingText
                     ref={tunedWordRef}
@@ -789,6 +801,34 @@ function Toolkit() {
 }
 
 function Contact() {
+  const [hasCopiedContact, setHasCopiedContact] = useState(false)
+  const copyFeedbackTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimer.current !== null) {
+        window.clearTimeout(copyFeedbackTimer.current)
+      }
+    }
+  }, [])
+
+  const copyContactNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(contactNumber)
+      setHasCopiedContact(true)
+
+      if (copyFeedbackTimer.current !== null) {
+        window.clearTimeout(copyFeedbackTimer.current)
+      }
+
+      copyFeedbackTimer.current = window.setTimeout(() => {
+        setHasCopiedContact(false)
+      }, 2000)
+    } catch {
+      setHasCopiedContact(false)
+    }
+  }
+
   return (
     <footer id="contact" className="scroll-mt-8 px-5 py-20 sm:px-10 sm:py-28">
       <div
@@ -800,8 +840,12 @@ function Contact() {
             06 / Open channel
           </p>
           <h2 className="mt-8 max-w-4xl text-5xl leading-[0.92] font-semibold tracking-tight sm:text-8xl">
-            A good opportunity deserves a conversation.
+            Have something good in mind? Let&apos;s talk.
           </h2>
+          <p className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+            Whether you&apos;re hiring, building something useful, or simply
+            want to say hello, I&apos;d be happy to hear from you.
+          </p>
         </div>
         <div className="manual-open-stamp grid size-44 place-items-center p-5 text-center text-sm font-bold tracking-[0.08em] uppercase">
           Currently open
@@ -812,31 +856,47 @@ function Contact() {
         </div>
       </div>
 
-      <div className="mt-16 grid gap-8 border-t pt-7 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div className="flex flex-wrap gap-5">
+      <div className="mt-16 border-t pt-8">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.14em] uppercase">
+              Choose what feels easiest
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Start a conversation, keep my résumé, or leave a quick rating.
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Thanks for stopping by.
+          </span>
+        </div>
+
+        <div className="manual-contact-actions">
           <a
             href="mailto:abdulmaliknahid@gmail.com"
-            className={cn(buttonVariants({ size: "lg" }), "rounded-full")}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "manual-contact-action"
+            )}
           >
             <IconMail data-icon="inline-start" />
-            Email me
+            Start a conversation
           </a>
           <a
             href={resume}
-            target="_blank"
-            rel="noreferrer"
+            download="Nahid-Abdulmalik-Resume.pdf"
             className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "rounded-full"
+              buttonVariants({ variant: "secondary", size: "lg" }),
+              "manual-contact-action"
             )}
           >
-            Resume
-            <IconDownload data-icon="inline-end" />
+            <IconDownload data-icon="inline-start" />
+            Download my résumé
           </a>
-          <WebsiteRatingDialog />
+          <WebsiteRatingDialog triggerClassName="manual-contact-action manual-contact-action--rating" />
         </div>
 
-        <div className="flex items-center gap-5 text-sm">
+        <div className="mt-7 flex flex-wrap items-center gap-5 text-sm">
           <a
             href="https://github.com/dihanmalik"
             target="_blank"
@@ -855,6 +915,43 @@ function Contact() {
             <IconBrandLinkedin />
             LinkedIn
           </a>
+          <a
+            href="https://www.tiktok.com/@dihanmalik0"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 hover:opacity-60"
+          >
+            <IconBrandTiktok />
+            TikTok
+          </a>
+          <div className="flex items-center gap-1 rounded-full border py-1 pr-1 pl-3">
+            <span aria-hidden="true">🇵🇭</span>
+            <a
+              href="tel:+639154960703"
+              className="px-1 hover:opacity-60"
+              aria-label={`Call ${contactNumber}`}
+            >
+              {contactNumber}
+            </a>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={copyContactNumber}
+              aria-label={
+                hasCopiedContact
+                  ? "Contact number copied"
+                  : "Copy contact number"
+              }
+            >
+              {hasCopiedContact ? (
+                <IconCheck data-icon="inline-start" />
+              ) : (
+                <IconCopy data-icon="inline-start" />
+              )}
+              {hasCopiedContact ? "Copied" : "Copy"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -874,12 +971,13 @@ function Contact() {
 export default function FieldManualPortfolio() {
   useScrollReveals()
   usePageInteractionHaptics()
+  const ownerDevice = isOwnerDevice()
 
   return (
     <div className="field-manual selection:bg-foreground selection:text-background">
       <div className="manual-page">
         <div className="manual-grid">
-          <Sidebar />
+          <Sidebar ownerDevice={ownerDevice} />
           <main>
             <Introduction />
             <Optimization />
@@ -888,6 +986,7 @@ export default function FieldManualPortfolio() {
             <AiPractice />
             <Toolkit />
             <ArcadeGames />
+            {ownerDevice ? <OwnerInsights /> : null}
             <Contact />
           </main>
         </div>
