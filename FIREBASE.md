@@ -7,6 +7,20 @@ Automatic visitor and game-progress writes do not begin until the user chooses
 **Allow** in the consent banner. The preference is stored locally and can be
 changed at `/privacy`.
 
+## Local environment
+
+Copy `.env.example` to `.env` and fill in the Firebase web-app values from the
+Firebase console. Vite exposes only variables prefixed with `VITE_` to the
+browser application.
+
+The real `.env` and environment-specific variants are ignored by Git. Keep
+service-account JSON, private keys, and Firebase Admin credentials out of this
+repository and out of all `VITE_` variables.
+
+If a CI service such as GitHub Actions builds the site, configure the same
+variables in that service and expose them to the `pnpm build` step. Local
+`pnpm deploy` builds use the ignored `.env` file automatically.
+
 ## Collections
 
 - `siteStats/general` stores the unique browser visitor count.
@@ -54,5 +68,7 @@ firebase deploy --only auth
 firebase deploy --only firestore
 ```
 
-The Firebase web configuration in `src/lib/firebase.ts` is intentionally public;
-access control is enforced by `firestore.rules`, not by hiding the API key.
+The app reads its Firebase web configuration from `VITE_FIREBASE_*` variables.
+These values are embedded in the browser bundle at build time and therefore are
+not server-side secrets. Access control is enforced by `firestore.rules`; use
+Firebase App Check and API-key restrictions as additional abuse protection.

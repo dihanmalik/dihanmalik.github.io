@@ -8,11 +8,16 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  where,
-  type Timestamp,
+  Timestamp,
 } from "firebase/firestore"
 
-import { firestore, getAnonymousUser, getSignedInOwner } from "@/lib/firebase"
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_PROJECT_ID,
+  firestore,
+  getAnonymousUser,
+  getSignedInOwner,
+} from "@/lib/firebase"
 
 export const OWNER_DEVICE_KEY = "portfolio-owner-device"
 export const TRACKING_CONSENT_KEY = "portfolio-tracking-consent"
@@ -296,14 +301,101 @@ export async function getLeaderboard(
   gameId: GameId,
   audienceType: AudienceType
 ) {
-  const entriesQuery = query(
-    collection(firestore, "leaderboards", gameId, "entries"),
-    where("audienceType", "==", audienceType),
-    orderBy("bestScore", "desc"),
-    limit(10)
-  )
-  const snapshot = await getDocs(entriesQuery)
-  return snapshot.docs.map((entry) => entry.data() as LeaderboardEntry)
+  type RestValue = {
+    integerValue?: string
+    stringValue?: string
+    timestampValue?: string
+  }
+  type RunQueryRow = {
+    document?: {
+      fields?: Record<string, RestValue>
+    }
+  }
+
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 10_000)
+
+  try {
+    const endpoint =
+      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}` +
+      `/databases/(default)/documents/leaderboards/${gameId}:runQuery` +
+      `?key=${FIREBASE_API_KEY}`
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: "entries" }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: "audienceType" },
+              op: "EQUAL",
+              value: { stringValue: audienceType },
+            },
+          },
+          orderBy: [
+            {
+              field: { fieldPath: "bestScore" },
+              direction: "DESCENDING",
+            },
+          ],
+          limit: 10,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Leaderboard request failed with ${response.status}.`)
+    }
+
+    const rows = (await response.json()) as RunQueryRow[]
+    return rows.flatMap(({ document }) => {
+      const fields = document?.fields
+      const uid = fields?.uid?.stringValue
+      const nickname = fields?.nickname?.stringValue
+      const savedAudienceType = fields?.audienceType?.stringValue
+      const bestScore = Number(fields?.bestScore?.integerValue)
+      const latestScore = Number(fields?.latestScore?.integerValue)
+      const submissions = Number(fields?.submissions?.integerValue)
+
+      if (
+        !uid ||
+        !nickname ||
+        (savedAudienceType !== "visitor" &&
+          savedAudienceType !== "recruiter") ||
+        !Number.isFinite(bestScore) ||
+        !Number.isFinite(latestScore) ||
+        !Number.isFinite(submissions)
+      ) {
+        return []
+      }
+
+      const readTimestamp = (value?: RestValue) => {
+        if (!value?.timestampValue) return undefined
+        const date = new Date(value.timestampValue)
+        return Number.isNaN(date.getTime())
+          ? undefined
+          : Timestamp.fromDate(date)
+      }
+
+      return [
+        {
+          uid,
+          nickname,
+          audienceType: savedAudienceType,
+          bestScore,
+          latestScore,
+          submissions,
+          createdAt: readTimestamp(fields.createdAt),
+          updatedAt: readTimestamp(fields.updatedAt),
+          bestScoreAt: readTimestamp(fields.bestScoreAt),
+        } satisfies LeaderboardEntry,
+      ]
+    })
+  } finally {
+    window.clearTimeout(timeout)
+  }
 }
 
 export async function getOwnerLeaderboard(gameId: GameId) {

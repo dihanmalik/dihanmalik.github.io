@@ -11,21 +11,36 @@ import {
 } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 
+function requireFirebaseEnv(name: string) {
+  const value = import.meta.env[name]?.trim()
+
+  if (!value) {
+    throw new Error(`Missing required Firebase environment variable: ${name}`)
+  }
+
+  return value
+}
+
+export const FIREBASE_API_KEY = requireFirebaseEnv("VITE_FIREBASE_API_KEY")
+export const FIREBASE_PROJECT_ID = requireFirebaseEnv(
+  "VITE_FIREBASE_PROJECT_ID"
+)
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBCl_By5lt91fYM9Ufiifs4R8hM6btOR0Q",
-  authDomain: "my-portfolio-285a8.firebaseapp.com",
-  projectId: "my-portfolio-285a8",
-  storageBucket: "my-portfolio-285a8.firebasestorage.app",
-  messagingSenderId: "752040583501",
-  appId: "1:752040583501:web:303ba806d3aceccc8d9704",
-  measurementId: "G-ELPLNWMW89",
+  apiKey: FIREBASE_API_KEY,
+  authDomain: requireFirebaseEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: requireFirebaseEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: requireFirebaseEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: requireFirebaseEnv("VITE_FIREBASE_APP_ID"),
+  measurementId: requireFirebaseEnv("VITE_FIREBASE_MEASUREMENT_ID"),
 }
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
 
 export const firestore = getFirestore(app)
 export const firebaseAuth = getAuth(app)
-export const OWNER_EMAIL = "abdulmaliknahid@gmail.com"
+export const OWNER_EMAIL = requireFirebaseEnv("VITE_FIREBASE_OWNER_EMAIL")
 
 let userPromise: Promise<User> | null = null
 
@@ -47,7 +62,7 @@ export function getAnonymousUser() {
 export async function getSignedInOwner() {
   await firebaseAuth.authStateReady()
   const user = firebaseAuth.currentUser
-  return user?.email === OWNER_EMAIL && user.emailVerified ? user : null
+  return user && user.email === OWNER_EMAIL && user.emailVerified ? user : null
 }
 
 export async function signInAsOwner() {

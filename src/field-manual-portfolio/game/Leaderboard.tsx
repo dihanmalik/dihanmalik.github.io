@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import type { FormEvent } from "react"
-import { IconDeviceGamepad2, IconTrophy } from "@tabler/icons-react"
+import {
+  IconDeviceGamepad2,
+  IconRefresh,
+  IconTrophy,
+} from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -161,6 +165,23 @@ function LeaderboardTable({
   )
 }
 
+function LeaderboardLoadError({ retry }: { retry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center gap-3 py-6 text-center"
+    >
+      <p className="text-sm text-destructive">
+        Scores took too long to arrive. Check your connection and try again.
+      </p>
+      <Button type="button" variant="outline" size="sm" onClick={retry}>
+        <IconRefresh data-icon="inline-start" />
+        Retry scores
+      </Button>
+    </div>
+  )
+}
+
 function formatLeaderboardDate(timestamp: LeaderboardEntry["createdAt"]) {
   if (!timestamp) return "—"
   return new Intl.DateTimeFormat(undefined, {
@@ -245,9 +266,7 @@ export function LeaderboardDialog({
           label="Show scores from"
         />
         {leaderboard.error ? (
-          <p role="alert" className="text-destructive">
-            {leaderboard.error}
-          </p>
+          <LeaderboardLoadError retry={leaderboard.refresh} />
         ) : (
           <LeaderboardTable
             entries={leaderboard.entries ?? []}
@@ -409,9 +428,7 @@ export function ScoreSubmissionDialog({
               visitorOnly={ownerDevice}
             />
             {leaderboard.error ? (
-              <p role="alert" className="text-destructive">
-                {leaderboard.error}
-              </p>
+              <LeaderboardLoadError retry={leaderboard.refresh} />
             ) : (
               <LeaderboardTable
                 entries={leaderboard.entries ?? []}

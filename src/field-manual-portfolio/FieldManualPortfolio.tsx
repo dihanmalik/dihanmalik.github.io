@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils"
 import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
 import { educationEntries, optimizationNotes, workEntries } from "./data"
 import { ArcadeGames } from "./game/ArcadeGames"
+import { ARCADE_RETURN_SCROLL_KEY } from "./game/game-exit"
 import { OwnerInsights } from "./OwnerInsights"
 import "./field-manual.css"
 
@@ -109,6 +110,36 @@ function useActiveManualSection() {
   }, [])
 
   return activeSection
+}
+
+function useArcadeReturnScroll() {
+  useEffect(() => {
+    if (sessionStorage.getItem(ARCADE_RETURN_SCROLL_KEY) !== "true") return
+
+    const restoreArcadePosition = () => {
+      document.getElementById("game")?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      })
+    }
+
+    let secondFrame = 0
+    const firstFrame = window.requestAnimationFrame(() => {
+      restoreArcadePosition()
+      secondFrame = window.requestAnimationFrame(() => {
+        restoreArcadePosition()
+        sessionStorage.removeItem(ARCADE_RETURN_SCROLL_KEY)
+      })
+    })
+
+    window.addEventListener("load", restoreArcadePosition, { once: true })
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      window.cancelAnimationFrame(secondFrame)
+      window.removeEventListener("load", restoreArcadePosition)
+    }
+  }, [])
 }
 
 function scrollToManualSection(
@@ -972,6 +1003,7 @@ function Contact() {
 }
 
 export default function FieldManualPortfolio() {
+  useArcadeReturnScroll()
   useScrollReveals()
   usePageInteractionHaptics()
   const ownerDevice = isOwnerDevice()
