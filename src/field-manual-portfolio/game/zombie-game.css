@@ -223,6 +223,7 @@
 .manual-game-over {
   position: absolute;
   inset: 0;
+  z-index: 3;
   display: grid;
   place-content: center;
   gap: 0.7rem;
@@ -262,13 +263,24 @@
   touch-action: none;
 }
 
-.manual-game-dpad {
-  display: grid;
-  grid-template: repeat(3, 3rem) / repeat(3, 3rem);
+.manual-game-joystick {
+  position: relative;
+  width: 8.25rem;
+  height: 8.25rem;
+  flex: 0 0 8.25rem;
+  cursor: grab;
+  overflow: hidden;
+  border: 1px solid rgb(244 243 235 / 68%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgb(244 243 235 / 8%) 0 32%, transparent 33%),
+    rgb(17 17 17 / 72%);
   touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
-.manual-game-dpad button,
 .manual-game-bat {
   display: grid;
   cursor: pointer;
@@ -282,31 +294,37 @@
   -webkit-touch-callout: none;
 }
 
-.manual-game-dpad button:active,
 .manual-game-bat:active {
   color: #111111;
   background: var(--manual-accent);
 }
 
-.manual-game-dpad svg {
-  width: 1rem;
-  height: 1rem;
+.manual-game-joystick:active {
+  cursor: grabbing;
 }
 
-.manual-control-up {
-  grid-area: 1 / 2;
+.manual-game-joystick-ring {
+  position: absolute;
+  inset: 15%;
+  border: 1px dashed rgb(244 243 235 / 28%);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
-.manual-control-left {
-  grid-area: 2 / 1;
-}
-
-.manual-control-down {
-  grid-area: 2 / 2;
-}
-
-.manual-control-right {
-  grid-area: 2 / 3;
+.manual-game-joystick-knob {
+  position: absolute;
+  top: calc(50% - 1.35rem);
+  left: calc(50% - 1.35rem);
+  width: 2.7rem;
+  height: 2.7rem;
+  border: 1px solid #111111;
+  border-radius: 999px;
+  background: var(--manual-accent);
+  box-shadow:
+    0 0 0 2px #f4f3eb,
+    0 0.35rem 0 rgb(0 0 0 / 35%);
+  pointer-events: none;
+  will-change: transform;
 }
 
 .manual-game-bat {
@@ -332,6 +350,80 @@
   font-size: 0.62rem;
   line-height: 1.5;
   text-align: center;
+}
+
+.manual-game-section--modal {
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  border: 0;
+  padding-top: 3rem;
+  background: #111111;
+}
+
+.manual-game-section--modal .manual-game-heading {
+  display: none;
+}
+
+.manual-game-section--modal .manual-game-cabinet {
+  display: grid;
+  width: 100%;
+  height: calc(100dvh - 3rem);
+  grid-template-rows: auto minmax(0, 1fr);
+  margin: 0;
+  border-color: #f4ead5;
+  box-shadow: none;
+}
+
+.manual-game-section--modal .manual-game-form {
+  align-content: center;
+  overflow: auto;
+}
+
+.manual-game-section--modal .manual-game-stage {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 0.65rem;
+}
+
+.manual-game-section--modal .manual-game-screen {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.manual-game-section--modal .manual-game-screen canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.manual-game-section--modal .manual-game-controls {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  left: 0.65rem;
+  z-index: 2;
+  width: auto;
+  padding: 0;
+  pointer-events: none;
+}
+
+.manual-game-section--modal .manual-game-controls button {
+  border-color: rgb(244 243 235 / 74%);
+  background: rgb(17 17 17 / 76%);
+  pointer-events: auto;
+}
+
+.manual-game-section--modal .manual-game-joystick {
+  pointer-events: auto;
+}
+
+.manual-game-section--modal .manual-game-help {
+  padding-block: 0.25rem 0;
 }
 
 @keyframes manual-game-spin {
@@ -379,8 +471,102 @@
     padding-inline: 0.5rem;
   }
 
-  .manual-game-dpad {
-    grid-template: repeat(3, 2.75rem) / repeat(3, 2.75rem);
+  .manual-game-joystick {
+    width: 8.25rem;
+    height: 8.25rem;
+  }
+}
+
+@media (orientation: portrait) {
+  .manual-game-section--modal .manual-game-screen {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .manual-game-section--modal .manual-game-screen canvas {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .manual-game-section--modal .manual-game-controls {
+    min-height: 0;
+  }
+
+  .manual-game-section--modal .manual-game-joystick {
+    width: 9rem;
+    height: 9rem;
+    flex: 0 0 9rem;
+  }
+
+  .manual-game-section--modal .manual-game-bat {
+    width: 5.5rem;
+    height: 5.5rem;
+    flex: 0 0 5.5rem;
+  }
+}
+
+@media (orientation: landscape) {
+  .manual-game-section--modal .manual-game-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0;
+  }
+
+  .manual-game-section--modal .manual-game-screen {
+    grid-area: 1 / 1;
+  }
+
+  .manual-game-section--modal .manual-game-controls {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0;
+  }
+
+  .manual-game-section--modal .manual-game-help {
+    grid-area: 2 / 1;
+    font-size: 0.55rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .manual-game-section--modal {
+    padding-top: 2.5rem;
+  }
+
+  .manual-game-section--modal .manual-game-cabinet {
+    height: calc(100dvh - 2.5rem);
+  }
+
+  .manual-game-section--modal .manual-game-marquee,
+  .manual-game-section--modal .manual-game-help {
+    display: none;
+  }
+
+  .manual-game-section--modal .manual-game-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0.4rem;
+  }
+
+  .manual-game-section--modal .manual-game-screen {
+    grid-area: 1 / 1;
+  }
+
+  .manual-game-section--modal .manual-game-controls {
+    grid-area: auto;
+  }
+
+  .manual-game-section--modal .manual-game-joystick {
+    width: 7rem;
+    height: 7rem;
+    flex-basis: 7rem;
+  }
+
+  .manual-game-section--modal .manual-game-bat {
+    width: 4.25rem;
+    height: 4.25rem;
   }
 }
 

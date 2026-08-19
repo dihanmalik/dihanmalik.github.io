@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils"
 
 import { AnimatedThemeToggler } from "./AnimatedThemeToggler"
 import { educationEntries, optimizationNotes, workEntries } from "./data"
-import { ZombieBatGame } from "./game/ZombieBatGame"
+import { ArcadeGames } from "./game/ArcadeGames"
 import "./field-manual.css"
 
 const navItems = [
@@ -32,7 +32,7 @@ const navItems = [
   ["02", "Work index", "#work"],
   ["03", "Education", "#education"],
   ["04", "AI practice", "#ai-practice"],
-  ["05", "Night shift", "#game"],
+  ["05", "Arcade", "#game"],
   ["06", "Contact", "#contact"],
   ["↗", "Explore in 3D", "/explore"],
 ]
@@ -80,6 +80,38 @@ function useScrollReveals() {
       observer.disconnect()
       root.classList.remove("manual-motion-ready")
     }
+  }, [])
+}
+
+function usePageInteractionHaptics() {
+  useEffect(() => {
+    if (typeof navigator.vibrate !== "function") return undefined
+
+    const interactiveSelector = [
+      "a[href]",
+      "button",
+      "input:not([type='hidden'])",
+      "select",
+      "textarea",
+      "summary",
+      "[role='button']",
+      "[role='tab']",
+      "[role='link']",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",")
+
+    const handleInteraction = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest(".manual-arcade-dialog, [data-no-page-haptic]")) return
+
+      const interactive = target.closest<HTMLElement>(interactiveSelector)
+      if (!interactive || interactive.matches(":disabled, [aria-disabled='true']")) return
+      navigator.vibrate(12)
+    }
+
+    document.addEventListener("click", handleInteraction, { capture: true })
+    return () => document.removeEventListener("click", handleInteraction, { capture: true })
   }, [])
 }
 
@@ -682,6 +714,7 @@ function Contact() {
 
 export default function FieldManualPortfolio() {
   useScrollReveals()
+  usePageInteractionHaptics()
 
   return (
     <div className="field-manual selection:bg-foreground selection:text-background">
@@ -695,7 +728,7 @@ export default function FieldManualPortfolio() {
             <Education />
             <AiPractice />
             <Toolkit />
-            <ZombieBatGame />
+            <ArcadeGames />
             <Contact />
           </main>
         </div>

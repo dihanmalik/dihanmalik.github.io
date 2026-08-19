@@ -135,7 +135,10 @@
 
 .manual-highlight::before {
   position: absolute;
-  inset: 46% -0.16em 0.02em;
+  right: -0.12em;
+  bottom: 0.08em;
+  left: -0.12em;
+  height: 0.16em;
   background: var(--manual-note);
   content: "";
   transform: rotate(-0.7deg);
