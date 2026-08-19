@@ -2438,27 +2438,29 @@ export default function ExplorePortfolio() {
                   <span>{isFullscreen ? "Exit full screen" : "Full screen"}</span>
                 </button>
               ) : null}
+              <div className="explore-speed"><strong>{speed}</strong><span>KM/H</span></div>
             </div>
-            <div className="explore-progress">
-              <span>{visited.length} / {STATIONS.length} discovered</span>
-              <div>{STATIONS.map((station) => <i key={station.id} className={visited.includes(station.id) ? "is-visited" : ""} />)}</div>
+            <div className="explore-hud-status">
+              <button
+                className="explore-light-cycle"
+                type="button"
+                onClick={toggleLighting}
+                aria-label={`${lighting.mode}, ${formatClock(lighting.remaining)} remaining. Switch to ${lighting.mode === "Daylight" ? "night" : "daylight"}.`}
+              >
+                {lighting.mode === "Daylight" ? <IconSun /> : <IconMoonStars />}
+                <span>
+                  <strong>{lighting.mode}</strong>
+                  <small>{formatClock(lighting.remaining)} until {lighting.mode === "Daylight" ? "night" : "day"}</small>
+                </span>
+              </button>
+              <div className="explore-progress">
+                <span>{visited.length} / {STATIONS.length} discovered</span>
+                <div>{STATIONS.map((station) => <i key={station.id} className={visited.includes(station.id) ? "is-visited" : ""} />)}</div>
+              </div>
             </div>
           </header>
 
           {!loaded ? <div className="explore-loader">Building world…</div> : null}
-
-          <button
-            className="explore-light-cycle"
-            type="button"
-            onClick={toggleLighting}
-            aria-label={`${lighting.mode}, ${formatClock(lighting.remaining)} remaining. Switch to ${lighting.mode === "Daylight" ? "night" : "daylight"}.`}
-          >
-            {lighting.mode === "Daylight" ? <IconSun /> : <IconMoonStars />}
-            <span>
-              <strong>{lighting.mode}</strong>
-              <small>{formatClock(lighting.remaining)} until {lighting.mode === "Daylight" ? "night" : "day"}</small>
-            </span>
-          </button>
 
           <aside className="explore-map" aria-label="World map">
             <span className="explore-map-title"><IconMapPin /> World map</span>
@@ -2474,8 +2476,6 @@ export default function ExplorePortfolio() {
               <b style={{ left: `${50 + carPosition.x * 1.15}%`, top: `${50 + carPosition.z * 1.15}%` }} />
             </div>
           </aside>
-
-          <div className="explore-speed"><strong>{speed}</strong><span>KM/H</span></div>
 
           {nearest && !activeStation ? (
             <button className="explore-interact" type="button" onClick={openNearest}>

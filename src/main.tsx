@@ -8,6 +8,7 @@ import { TooltipProvider } from "./components/ui/tooltip.tsx"
 import ExploreRoute from "./explore/ExploreRoute.tsx"
 import { preloadExploreRoute } from "./explore/preloadExplore.ts"
 import FieldManualPortfolio from "./field-manual-portfolio/FieldManualPortfolio.tsx"
+import { ArcadeGameRoute } from "./field-manual-portfolio/game/ArcadeGameRoute.tsx"
 
 const restoredRoute = sessionStorage.getItem("portfolio-route")
 if (restoredRoute) {
@@ -16,11 +17,18 @@ if (restoredRoute) {
 }
 
 const isExploreRoute = /^\/(explore|world)\/?$/.test(window.location.pathname)
+const arcadeGameMatch = window.location.pathname.match(
+  /^\/games\/(void-patrol|night-shift)\/?$/
+)
+const arcadeGame = arcadeGameMatch?.[1] as
+  "void-patrol" | "night-shift" | undefined
 
-if (!isExploreRoute) {
+if (!isExploreRoute && !arcadeGame) {
   const preload = () => {
     if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(() => void preloadExploreRoute(), { timeout: 2500 })
+      window.requestIdleCallback(() => void preloadExploreRoute(), {
+        timeout: 2500,
+      })
     } else {
       window.setTimeout(() => void preloadExploreRoute(), 1000)
     }
@@ -33,11 +41,21 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <TooltipProvider>
-        {isExploreRoute ? (
-          <Suspense fallback={<div className="grid min-h-svh place-items-center font-mono text-xs uppercase">Loading 3D world…</div>}>
+        {arcadeGame ? (
+          <ArcadeGameRoute game={arcadeGame} />
+        ) : isExploreRoute ? (
+          <Suspense
+            fallback={
+              <div className="grid min-h-svh place-items-center font-mono text-xs uppercase">
+                Loading 3D world…
+              </div>
+            }
+          >
             <ExploreRoute />
           </Suspense>
-        ) : <FieldManualPortfolio />}
+        ) : (
+          <FieldManualPortfolio />
+        )}
       </TooltipProvider>
     </ThemeProvider>
   </StrictMode>
