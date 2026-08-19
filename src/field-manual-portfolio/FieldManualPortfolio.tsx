@@ -9,6 +9,7 @@ import {
   IconDownload,
   IconMail,
   IconPlus,
+  IconSteeringWheel,
 } from "@tabler/icons-react"
 
 import claudeCodeLogo from "@/assets/claudecode.svg?url&no-inline"
@@ -33,6 +34,7 @@ const navItems = [
   ["04", "AI practice", "#ai-practice"],
   ["05", "Night shift", "#game"],
   ["06", "Contact", "#contact"],
+  ["↗", "Explore in 3D", "/explore"],
 ]
 
 function useScrollReveals() {
@@ -156,6 +158,13 @@ function Sidebar() {
         </nav>
 
         <div className="mt-auto">
+          <a
+            href="/explore"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mb-5 w-full rounded-none")}
+          >
+            <IconSteeringWheel data-icon="inline-start" />
+            Enter 3D world
+          </a>
           <p className="text-[0.65rem] leading-relaxed tracking-[0.14em] text-muted-foreground uppercase">
             Frontend engineer
             <br />
@@ -217,6 +226,16 @@ function Introduction() {
               , clearer, and easier to evolve.
             </p>
           </div>
+          <a
+            href="/explore"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "mt-8 rounded-none lg:hidden"
+            )}
+          >
+            <IconSteeringWheel data-icon="inline-start" />
+            Explore my work in 3D
+          </a>
         </div>
 
         <div className="manual-portrait-wrap relative mx-auto w-full max-w-80">
