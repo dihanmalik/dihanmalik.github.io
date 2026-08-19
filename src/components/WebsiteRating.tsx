@@ -22,11 +22,14 @@ import {
 } from "@/components/ui/dialog"
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
+  FieldLabel,
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
@@ -90,7 +93,10 @@ function WebsiteRatingSummaryView({ summary }: { summary: RatingSummary }) {
       <div className="flex items-center gap-1" aria-hidden="true">
         {[1, 2, 3, 4, 5].map((star) =>
           star <= filledStars ? (
-            <IconStarFilled key={star} className="text-primary" />
+            <IconStarFilled
+              key={star}
+              className="text-[var(--portfolio-accent)]"
+            />
           ) : (
             <IconStar key={star} className="text-muted-foreground" />
           )
@@ -123,6 +129,7 @@ export function WebsiteRatingForm({
   const [audienceType, setAudienceType] = useState<AudienceType>(
     () => getVisitorAudienceType() ?? "visitor"
   )
+  const [raterName, setRaterName] = useState("")
   const [checking, setChecking] = useState(true)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -152,7 +159,7 @@ export function WebsiteRatingForm({
     setError("")
 
     try {
-      await submitWebsiteRating(rating, audienceType)
+      await submitWebsiteRating(rating, audienceType, raterName)
       setSubmitted(true)
     } catch (submissionError) {
       setError(
@@ -215,7 +222,7 @@ export function WebsiteRatingForm({
               const next = Number(values[0])
               if (next >= 1 && next <= 5) setRating(next)
             }}
-            variant="outline"
+            variant="accent"
             size="lg"
             spacing={1}
             className="grid w-full grid-cols-5"
@@ -226,7 +233,7 @@ export function WebsiteRatingForm({
                 key={value}
                 value={String(value)}
                 aria-label={`${value} out of 5`}
-                className="h-auto w-full flex-col gap-1 py-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                className="h-auto w-full flex-col gap-1 py-3"
               >
                 <IconStarFilled aria-hidden="true" />
                 <span>{value}</span>
@@ -251,28 +258,42 @@ export function WebsiteRatingForm({
                 setAudienceType(next)
               }
             }}
-            variant="outline"
+            variant="accent"
             size="lg"
             spacing={1}
             className="grid w-full grid-cols-2"
             aria-label="Your relationship to the portfolio"
           >
-            <ToggleGroupItem
-              value="visitor"
-              className="h-auto w-full py-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-            >
+            <ToggleGroupItem value="visitor" className="h-auto w-full py-3">
               <IconUser aria-hidden="true" />
               Curious visitor
             </ToggleGroupItem>
-            <ToggleGroupItem
-              value="recruiter"
-              className="h-auto w-full py-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-            >
+            <ToggleGroupItem value="recruiter" className="h-auto w-full py-3">
               <IconBriefcase aria-hidden="true" />
               Recruiter
             </ToggleGroupItem>
           </ToggleGroup>
         </FieldSet>
+
+        <Field>
+          <FieldLabel htmlFor="website-rating-name">
+            What should I call you? <span aria-hidden="true">(optional)</span>
+          </FieldLabel>
+          <Input
+            id="website-rating-name"
+            name="raterName"
+            value={raterName}
+            onChange={(event) => setRaterName(event.target.value)}
+            maxLength={40}
+            autoComplete="name"
+            placeholder="Your name or a friendly nickname"
+            disabled={saving}
+          />
+          <FieldDescription>
+            Totally optional—leave this blank to keep your rating anonymous.
+            Your browser ID, not your name, prevents repeat ratings.
+          </FieldDescription>
+        </Field>
 
         {error ? (
           <Field data-invalid>
@@ -281,7 +302,7 @@ export function WebsiteRatingForm({
         ) : null}
       </FieldGroup>
 
-      <Button type="submit" size="lg" disabled={saving}>
+      <Button type="submit" variant="accent" size="lg" disabled={saving}>
         {saving ? (
           <>
             <Spinner data-icon="inline-start" />
@@ -339,8 +360,8 @@ export function WebsiteRatingDialog({
               How did this little corner of the internet land?
             </DialogTitle>
             <DialogDescription className="max-w-md leading-relaxed">
-              Tap a few stars and tell me what brought you here. No essay, no
-              name, and definitely no awkward follow-up email.
+              Tap a few stars and tell me what brought you here. Add a name only
+              if you feel like it—there&apos;s no awkward follow-up email.
             </DialogDescription>
             <WebsiteRatingSummaryView summary={summary} />
           </DialogHeader>
@@ -348,7 +369,7 @@ export function WebsiteRatingDialog({
         <div className="p-6">
           <WebsiteRatingForm />
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            One anonymous rating per browser · no name or IP stored
+            One rating per anonymous browser ID · no IP stored
           </p>
         </div>
       </DialogContent>

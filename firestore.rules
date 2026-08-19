@@ -319,11 +319,20 @@ service cloud.firestore {
       allow create: if owns(uid)
         && request.resource.data.keys().hasOnly([
           "uid",
+          "name",
           "rating",
           "audienceType",
           "createdAt"
         ])
         && request.resource.data.uid == uid
+        && (
+          !request.resource.data.keys().hasAll(["name"])
+          || (
+            request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 40
+          )
+        )
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5

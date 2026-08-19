@@ -52,8 +52,8 @@ export function PrivacyRoute() {
           <p className="leading-relaxed text-muted-foreground">
             If you explicitly join a leaderboard, the nickname and
             visitor/recruiter selection you submit become public with your best
-            score. Website ratings store only a 1–5 rating and that audience
-            type.
+            score. Website ratings store a 1–5 rating, that audience type, and
+            an optional name only when you choose to provide one.
           </p>
         </section>
 

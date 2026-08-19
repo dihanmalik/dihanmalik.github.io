@@ -64,7 +64,7 @@ function RatingTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Leaderboard name</TableHead>
+            <TableHead>Name</TableHead>
             <TableHead>Anonymous browser ID</TableHead>
             <TableHead>Rating</TableHead>
             <TableHead>Type</TableHead>
@@ -75,7 +75,7 @@ function RatingTable({
           {ratings.map((rating) => (
             <TableRow key={rating.uid}>
               <TableCell className="font-medium">
-                {nicknamesByUid.get(rating.uid) ?? "—"}
+                {rating.name ?? nicknamesByUid.get(rating.uid) ?? "—"}
               </TableCell>
               <TableCell className="max-w-64 font-mono text-xs break-all">
                 {rating.uid}

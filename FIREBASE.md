@@ -34,7 +34,8 @@ variables in that service and expose them to the `pnpm build` step. Local
 - `leaderboards/{gameId}/entries/{uid}` stores one best-score entry per game
   and browser, including the optional public nickname, audience type, and
   server-recorded timestamps for the entry, latest submission, and best score.
-- `websiteRatings/{uid}` stores one anonymous rating per browser.
+- `websiteRatings/{uid}` stores one rating per anonymous browser ID, including
+  an optional display name supplied by the rater.
 
 Names are not used as identifiers. Firebase Anonymous Authentication supplies a
 persistent browser identity. Clearing browser storage, using private browsing,
@@ -57,7 +58,8 @@ local Google sign-in development, including `http://localhost:5176`; Firebase
 Authentication authorizes the hostname rather than an individual port.
 
 The private owner section also reads up to 100 recent website ratings, including
-their anonymous browser ID, rating, visitor/recruiter type, and submission time.
+their optional name, anonymous browser ID, rating, visitor/recruiter type, and
+submission time.
 
 ## Firebase deployment
 

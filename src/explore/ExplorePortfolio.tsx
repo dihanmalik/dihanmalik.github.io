@@ -1626,10 +1626,9 @@ function StationPanel({
           <IconMessageStar className="explore-panel-icon" />
           <h2 id="station-title">How did this portfolio land?</h2>
           <p>
-            Leave one quick rating. No name or message is stored, and no IP
-            address is added to the portfolio database—only the score, whether
-            you are visiting or recruiting, and an anonymous browser account
-            used to prevent repeat votes.
+            Leave one quick rating and, if you feel like it, an optional name or
+            nickname. No IP address is added to the portfolio database; an
+            anonymous browser account prevents repeat votes.
           </p>
           <WebsiteRatingStation />
         </>

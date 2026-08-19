@@ -57,6 +57,7 @@ export type VisitorRecord = {
 
 export type WebsiteRatingRecord = {
   uid: string
+  name?: string
   rating: number
   audienceType: AudienceType
   createdAt?: Timestamp
@@ -447,11 +448,13 @@ export async function hasSubmittedRating() {
 
 export async function submitWebsiteRating(
   rating: number,
-  audienceType: AudienceType
+  audienceType: AudienceType,
+  raterName = ""
 ) {
   const user = await getAnonymousUser()
   const ratingRef = doc(firestore, "websiteRatings", user.uid)
   const statsRef = doc(firestore, "siteStats", "ratings")
+  const name = raterName.trim()
 
   await runTransaction(firestore, async (transaction) => {
     const [existingRating, stats] = await Promise.all([
@@ -466,6 +469,7 @@ export async function submitWebsiteRating(
     const ratingTotal = Number(stats.data()?.ratingTotal ?? 0)
     transaction.set(ratingRef, {
       uid: user.uid,
+      ...(name ? { name } : {}),
       rating,
       audienceType,
       createdAt: serverTimestamp(),

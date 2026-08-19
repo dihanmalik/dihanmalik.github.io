@@ -26,23 +26,17 @@ export function AudienceTypePicker({
             onValueChange(next)
           }
         }}
-        variant="outline"
+        variant="accent"
         size="lg"
         spacing={1}
         className="grid w-full grid-cols-2"
         aria-label="Your relationship to the portfolio"
       >
-        <ToggleGroupItem
-          value="visitor"
-          className="h-auto w-full py-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-        >
+        <ToggleGroupItem value="visitor" className="h-auto w-full py-3">
           <IconUser aria-hidden="true" />
           Visitor
         </ToggleGroupItem>
-        <ToggleGroupItem
-          value="recruiter"
-          className="h-auto w-full py-3 aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-        >
+        <ToggleGroupItem value="recruiter" className="h-auto w-full py-3">
           <IconBriefcase aria-hidden="true" />
           Recruiter
         </ToggleGroupItem>
