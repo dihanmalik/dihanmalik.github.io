@@ -22,10 +22,10 @@ const roadmap = [
     description: (
       <div className="flex flex-col gap-4 rounded-lg border border-yellow-200 bg-yellow-50 p-5 dark:border-yellow-500 dark:bg-yellow-100 dark:text-gray-800">
         <p>
-          I am currently seeking new opportunities to contribute my skills and
-          expertise in frontend development. If you are looking for a dedicated
-          and experienced frontend developer, please feel free to reach out to
-          me via{" "}
+          I am currently seeking new opportunities as a Senior Frontend
+          Developer or Full-stack TypeScript Developer. If you are looking for a
+          dedicated developer who can work from interface to API and data,
+          please feel free to reach out to me via{" "}
           <a
             href="https://www.linkedin.com/in/abdulmaliknahid/"
             target="_blank"
@@ -221,11 +221,10 @@ const roadmap = [
     description: (
       <div className="flex flex-col gap-4">
         <p>
-          Software Developer specializing in frontend development, building
-          scalable web and mobile applications with ReactJS while creating
-          reusable architectures, boilerplates, design patterns, and optimized,
-          well-tested solutions that improve both system performance and user
-          experience.
+          Software Developer building scalable web and mobile applications with
+          TypeScript and ReactJS while creating reusable architectures,
+          boilerplates, design patterns, and optimized, well-tested solutions
+          that improve both system performance and user experience.
         </p>
         <p>
           I also lead frontend teams of 3–6 developers through code reviews and

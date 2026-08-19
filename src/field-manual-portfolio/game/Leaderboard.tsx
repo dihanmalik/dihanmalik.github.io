@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { FormEvent } from "react"
 import { IconDeviceGamepad2, IconTrophy } from "@tabler/icons-react"
 
@@ -22,6 +22,7 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
   TableBody,
@@ -33,6 +34,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   getLeaderboard,
+  getOwnLeaderboardEntry,
   isOwnerDevice,
   submitLeaderboardScore,
   type AudienceType,
@@ -261,22 +263,83 @@ export function ScoreSubmissionDialog({
   gameId,
   gameName,
   score,
+  onFinished,
+  requestOpenKey = 0,
 }: {
   gameId: GameId
   gameName: string
   score: number
+  onFinished?: () => void
+  requestOpenKey?: number
 }) {
   const savedProfile = readSavedProfile()
   const ownerDevice = isOwnerDevice()
-  const [open, setOpen] = useState(true)
+  const [closedForKey, setClosedForKey] = useState<number | null>(null)
   const [nickname, setNickname] = useState(savedProfile.nickname)
   const [audienceType, setAudienceType] = useState<AudienceType>(
     ownerDevice ? "visitor" : savedProfile.audienceType
   )
   const [saving, setSaving] = useState(false)
+  const [checkingProfile, setCheckingProfile] = useState(true)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
+  const autoSaveStarted = useRef(false)
+  const open = closedForKey !== requestOpenKey
   const leaderboard = useLeaderboard(gameId, audienceType, open && saved)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void getOwnLeaderboardEntry(gameId)
+      .then(async (entry) => {
+        if (cancelled || !entry || autoSaveStarted.current) return
+        autoSaveStarted.current = true
+        const existingAudience = ownerDevice ? "visitor" : entry.audienceType
+        setNickname(entry.nickname)
+        setAudienceType(existingAudience)
+        setSaving(true)
+        await submitLeaderboardScore(
+          gameId,
+          entry.nickname,
+          existingAudience,
+          score
+        )
+        if (!cancelled) {
+          localStorage.setItem(
+            PROFILE_KEY,
+            JSON.stringify({
+              nickname: entry.nickname,
+              audienceType: existingAudience,
+            })
+          )
+          setSaved(true)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError(
+            autoSaveStarted.current
+              ? "Your score could not be saved automatically. Please try again."
+              : "We could not check your player profile. You can still save this score."
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCheckingProfile(false)
+          setSaving(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [gameId, ownerDevice, score])
+
+  const finish = () => {
+    setClosedForKey(requestOpenKey)
+    onFinished?.()
+  }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -304,11 +367,24 @@ export function ScoreSubmissionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-lg">
+    <Dialog
+      open={open}
+      disablePointerDismissal
+      onOpenChange={() => {
+        // Score prompts close only through their explicit action buttons.
+      }}
+    >
+      <DialogContent
+        className="max-h-[88svh] overflow-y-auto sm:max-w-lg"
+        showCloseButton={false}
+      >
         <DialogHeader>
           <DialogTitle>
-            {saved ? "You made the board" : "Save your score?"}
+            {checkingProfile
+              ? "Checking your player card…"
+              : saved
+                ? "Your score is recorded"
+                : "Save your score?"}
           </DialogTitle>
           <DialogDescription>
             {gameName} · {score.toLocaleString()} points. Your name is used only
@@ -316,7 +392,15 @@ export function ScoreSubmissionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {saved ? (
+        {checkingProfile ? (
+          <div className="flex min-h-32 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+            <Spinner />
+            <p>
+              Looking for your anonymous browser profile. Returning players are
+              added automatically.
+            </p>
+          </div>
+        ) : saved ? (
           <>
             <AudienceToggle
               value={audienceType}
@@ -335,7 +419,7 @@ export function ScoreSubmissionDialog({
               />
             )}
             <DialogFooter>
-              <Button onClick={() => setOpen(false)}>Done</Button>
+              <Button onClick={finish}>Done</Button>
             </DialogFooter>
           </>
         ) : (
@@ -364,11 +448,7 @@ export function ScoreSubmissionDialog({
               />
             </FieldGroup>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={finish}>
                 Not now
               </Button>
               <Button type="submit" disabled={saving}>

@@ -35,9 +35,11 @@ export function PrivacyRoute() {
           <h2 className="text-xl font-semibold">What is stored</h2>
           <p className="leading-relaxed text-muted-foreground">
             With your permission, Firebase creates an anonymous browser account.
-            It stores visit timestamps and paths, game attempts and scores, and
-            a random account ID. It does not intentionally store your IP
-            address, device fingerprint, email, or real identity.
+            It stores visit timestamps, paths, visit count, active time on the
+            site, game attempts and scores, and a random account ID. Time is
+            counted while this site is visible in the browser. It does not
+            intentionally store your IP address, device fingerprint, email, or
+            real identity.
           </p>
           <p className="leading-relaxed text-muted-foreground">
             If you explicitly join a leaderboard, the nickname and

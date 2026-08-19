@@ -33,10 +33,10 @@ export function ConsentBanner() {
             Can I leave one useful crumb?
           </h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            I&apos;d like to count this visit and remember your mini-game
-            progress with an anonymous browser ID. No ads, no device
-            fingerprint, and no IP address added to my database. Your games work
-            either way.
+            I&apos;d like to count this visit, measure active time on the site,
+            and remember your mini-game progress with an anonymous browser ID.
+            No ads, no device fingerprint, and no IP address added to my
+            database. Your games work either way.
           </p>
         </div>
       </div>

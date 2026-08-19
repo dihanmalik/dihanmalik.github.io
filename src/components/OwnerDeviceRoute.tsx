@@ -30,6 +30,17 @@ function formatVisitDate(timestamp: VisitorRecord["lastSeenAt"]) {
   }).format(timestamp.toDate())
 }
 
+function formatDuration(totalSeconds = 0) {
+  const seconds = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(seconds / 3_600)
+  const minutes = Math.floor((seconds % 3_600) / 60)
+  const remainder = seconds % 60
+
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m ${remainder}s`
+  return `${remainder}s`
+}
+
 export function OwnerDeviceRoute() {
   const [excluded, setExcluded] = useState(isOwnerDevice)
   const [ownerVerified, setOwnerVerified] = useState(false)
@@ -163,6 +174,8 @@ export function OwnerDeviceRoute() {
                       <TableHead>First path</TableHead>
                       <TableHead>Last path</TableHead>
                       <TableHead className="text-right">Visits</TableHead>
+                      <TableHead className="text-right">Latest visit</TableHead>
+                      <TableHead className="text-right">Total time</TableHead>
                       <TableHead className="text-right">First seen</TableHead>
                       <TableHead className="text-right">Last seen</TableHead>
                     </TableRow>
@@ -178,6 +191,12 @@ export function OwnerDeviceRoute() {
                         <TableCell className="text-right">
                           {visitor.visitCount.toLocaleString()}
                         </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          {formatDuration(visitor.lastVisitDurationSeconds)}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          {formatDuration(visitor.totalDurationSeconds)}
+                        </TableCell>
                         <TableCell className="text-right text-xs whitespace-nowrap">
                           {formatVisitDate(visitor.firstSeenAt)}
                         </TableCell>
@@ -188,7 +207,7 @@ export function OwnerDeviceRoute() {
                     ))}
                     {!loadingVisitors && visitors.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-8 text-center">
+                        <TableCell colSpan={8} className="py-8 text-center">
                           No visitor records yet.
                         </TableCell>
                       </TableRow>

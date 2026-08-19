@@ -4,6 +4,7 @@ import {
   IconDeviceMobileOff,
   IconDeviceMobileVibration,
   IconHandRock,
+  IconLogout,
   IconRipple,
   IconSettings,
   IconVolume,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/portfolio-data"
 
 import "./space-shooter.css"
+import { ARCADE_EXIT_REQUEST_EVENT, returnToPortfolioArcade } from "./game-exit"
 import { LeaderboardDialog, ScoreSubmissionDialog } from "./Leaderboard"
 
 type Phase = "ready" | "playing" | "gameover"
@@ -1757,6 +1759,7 @@ export function SpaceShooterGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef(createEngine())
   const audioRef = useRef<AudioContext | null>(null)
+  const runFinishedRef = useRef(false)
   const [phase, setPhase] = useState<Phase>("ready")
   const [finalScore, setFinalScore] = useState(0)
   const [completedRunNumber, setCompletedRunNumber] = useState(0)
@@ -1770,6 +1773,8 @@ export function SpaceShooterGame() {
   const [muted, setMuted] = useState(false)
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [returnAfterScore, setReturnAfterScore] = useState(false)
+  const [scoreDialogOpenKey, setScoreDialogOpenKey] = useState(0)
   const [selectedColor, setSelectedColor] = useState<ColorOption>(
     COLOR_OPTIONS[0]
   )
@@ -1891,6 +1896,8 @@ export function SpaceShooterGame() {
     engine.nextSurvivorAt = now + 7_500
     engine.nextMeteorAt = now + 9_000
     engineRef.current = engine
+    runFinishedRef.current = false
+    setReturnAfterScore(false)
     setFinalScore(0)
     setSpecialStatus({ ready: true, seconds: 0, progress: 1 })
     setArmReady(false)
@@ -1899,6 +1906,40 @@ export function SpaceShooterGame() {
     trackInBackground(recordGameStart("void-patrol"))
     requestAnimationFrame(() => canvasRef.current?.focus())
   }, [hapticsEnabled, muted])
+
+  const quitGame = useCallback(() => {
+    if (phase === "ready") {
+      returnToPortfolioArcade()
+      return
+    }
+
+    setSettingsOpen(false)
+    setReturnAfterScore(true)
+    setScoreDialogOpenKey((current) => current + 1)
+    engineRef.current.targetTimeScale = 0
+    pauseGameAudio()
+
+    if (phase === "playing" && !runFinishedRef.current) {
+      const score = engineRef.current.score
+      runFinishedRef.current = true
+      setFinalScore(score)
+      setCompletedRunNumber((current) => current + 1)
+      setPhase("gameover")
+      trackInBackground(recordGameOver("void-patrol", score))
+    }
+  }, [pauseGameAudio, phase])
+
+  useEffect(() => {
+    const handleExitRequest = (event: Event) => {
+      if (phase === "ready") return
+      event.preventDefault()
+      quitGame()
+    }
+
+    window.addEventListener(ARCADE_EXIT_REQUEST_EVENT, handleExitRequest)
+    return () =>
+      window.removeEventListener(ARCADE_EXIT_REQUEST_EVENT, handleExitRequest)
+  }, [phase, quitGame])
 
   useEffect(() => {
     if (phase !== "playing" || muted || !audioRef.current) return undefined
@@ -3061,6 +3102,7 @@ export function SpaceShooterGame() {
           playGameSound(audioRef.current, "powerup")
         } else {
           render(context, engine, now)
+          runFinishedRef.current = true
           setFinalScore(engine.score)
           setCompletedRunNumber((current) => current + 1)
           setPhase("gameover")
@@ -3398,6 +3440,20 @@ export function SpaceShooterGame() {
                 <span>HAPTICS</span>
                 <strong>{hapticsEnabled ? "ON" : "OFF"}</strong>
               </button>
+              <LeaderboardDialog
+                gameId="void-patrol"
+                gameName="Void Patrol"
+                triggerClassName="space-game-settings-action"
+              />
+              <button
+                type="button"
+                className="space-game-settings-action"
+                onClick={quitGame}
+              >
+                <IconLogout aria-hidden="true" />
+                <span>QUIT GAME</span>
+                <strong>EXIT</strong>
+              </button>
             </div>
           </section>
         </div>
@@ -3408,6 +3464,8 @@ export function SpaceShooterGame() {
           gameId="void-patrol"
           gameName="Void Patrol"
           score={finalScore}
+          requestOpenKey={scoreDialogOpenKey}
+          onFinished={returnAfterScore ? returnToPortfolioArcade : undefined}
         />
       ) : null}
     </div>

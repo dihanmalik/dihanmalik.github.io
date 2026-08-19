@@ -10,18 +10,35 @@
   overflow: clip;
   color: var(--manual-ink);
   background-color: var(--manual-paper);
-  background-image: radial-gradient(
-    var(--manual-mid) 0.65px,
-    transparent 0.65px
-  );
-  background-size: 6px 6px;
+  background-image:
+    radial-gradient(
+      circle at 8% 4%,
+      color-mix(in oklab, var(--manual-accent) 18%, transparent),
+      transparent 30rem
+    ),
+    radial-gradient(
+      circle at 96% 34%,
+      color-mix(in oklab, var(--manual-note) 24%, transparent),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 20% 82%,
+      color-mix(in oklab, var(--manual-accent) 9%, transparent),
+      transparent 32rem
+    ),
+    radial-gradient(var(--manual-mid) 0.65px, transparent 0.65px);
+  background-attachment: fixed;
+  background-size: auto, auto, auto, 6px 6px;
 }
 
 .manual-page {
   width: min(100% - 1.5rem, 86rem);
   margin-inline: auto;
-  background: color-mix(in oklab, var(--manual-paper) 96%, transparent);
+  background: color-mix(in oklab, var(--manual-paper) 91%, transparent);
   border-inline: 1px solid var(--border);
+  box-shadow: 0 0 5rem
+    color-mix(in oklab, var(--manual-accent) 7%, transparent);
+  backdrop-filter: blur(14px);
 }
 
 ::view-transition-old(root),
@@ -68,6 +85,94 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.manual-nav-link {
+  position: relative;
+  min-height: 1.5rem;
+  transition:
+    color 220ms ease,
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.manual-nav-link::before {
+  position: absolute;
+  top: 50%;
+  left: -0.8rem;
+  width: 0.42rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--manual-accent);
+  box-shadow: 0 0 0 0
+    color-mix(in oklab, var(--manual-accent) 40%, transparent);
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%) scale(0.25);
+  transition:
+    opacity 180ms ease,
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.manual-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.32rem;
+  left: 2rem;
+  height: 1px;
+  background: linear-gradient(90deg, var(--manual-accent), transparent);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition:
+    opacity 180ms ease,
+    transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.manual-nav-number,
+.manual-nav-label {
+  transition:
+    color 220ms ease,
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.manual-nav-link:hover .manual-nav-label {
+  transform: translateX(0.25rem);
+}
+
+.manual-nav-link.is-active {
+  color: var(--manual-accent);
+  transform: translateX(0.35rem) scale(1.08);
+  transform-origin: left center;
+}
+
+.manual-nav-link.is-active::before {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  animation: manual-nav-pulse 1.8s ease-out infinite;
+}
+
+.manual-nav-link.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.manual-nav-link.is-active .manual-nav-number {
+  color: var(--manual-accent);
+  font-weight: 750;
+}
+
+.manual-nav-link.is-active .manual-nav-label {
+  color: var(--manual-accent);
+  font-weight: 700;
+  transform: translateX(0.2rem);
+}
+
+@keyframes manual-nav-pulse {
+  55%,
+  100% {
+    box-shadow: 0 0 0 0.5rem transparent;
+  }
+}
+
 .manual-rule-text {
   display: flex;
   align-items: center;
@@ -92,10 +197,16 @@
 
 .manual-title {
   max-width: 12ch;
-  font-size: clamp(3.65rem, 9.5vw, 9rem);
+  font-size: clamp(2.8rem, 7.4vw, 6.9rem);
   font-weight: 650;
   line-height: 0.92;
   letter-spacing: -0.075em;
+}
+
+@media (max-width: 639px) {
+  .manual-title {
+    font-size: 3.3rem;
+  }
 }
 
 .manual-title em {
@@ -104,6 +215,20 @@
   font-weight: 400;
   letter-spacing: -0.055em;
   color: var(--manual-accent);
+}
+
+.manual-title .manual-rolling-word {
+  display: inline-flex;
+  overflow: hidden;
+  vertical-align: -0.08em;
+}
+
+.manual-rotating-text,
+.manual-rotating-text .text-rotate {
+  min-width: 0;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .manual-sideways {
@@ -361,8 +486,17 @@
   .manual-portrait,
   .manual-index-row,
   .manual-index-plus,
-  .manual-metric {
+  .manual-metric,
+  .manual-nav-link,
+  .manual-nav-link::before,
+  .manual-nav-link::after,
+  .manual-nav-number,
+  .manual-nav-label {
     transition: none;
+  }
+
+  .manual-nav-link.is-active::before {
+    animation: none;
   }
 
   .manual-motion-ready [data-manual-reveal] {

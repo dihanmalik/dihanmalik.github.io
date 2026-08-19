@@ -90,10 +90,10 @@ export const IntroSection = () => {
           </p>
         </div>
         <p className="text-md">
-          I'm a Frontend Software Developer who's been building applications
-          since 2016, mainly using React to create fast, responsive, and
-          user-friendly interfaces with a strong focus on performance and
-          optimization.
+          I'm a Senior Frontend Developer and Full-stack TypeScript Developer
+          who's been building applications since 2016. I create fast, responsive
+          interfaces, reliable APIs, and scalable product systems with a strong
+          focus on performance and maintainability.
         </p>
         <p className="text-md">
           Over the years, I've continued learning new technologies and improving

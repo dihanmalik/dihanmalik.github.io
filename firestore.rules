@@ -112,26 +112,55 @@ service cloud.firestore {
           "lastPath",
           "firstSeenAt",
           "lastSeenAt",
-          "visitCount"
+          "visitCount",
+          "lastVisitDurationSeconds",
+          "totalDurationSeconds"
         ])
         && request.resource.data.uid == uid
         && validPath(request.resource.data.firstPath)
         && validPath(request.resource.data.lastPath)
         && request.resource.data.firstSeenAt == request.time
         && request.resource.data.lastSeenAt == request.time
-        && request.resource.data.visitCount == 1;
+        && request.resource.data.visitCount == 1
+        && request.resource.data.lastVisitDurationSeconds == 0
+        && request.resource.data.totalDurationSeconds == 0;
       allow update: if owns(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "lastPath",
           "lastSeenAt",
-          "visitCount"
+          "visitCount",
+          "lastVisitDurationSeconds",
+          "totalDurationSeconds"
         ])
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.firstPath == resource.data.firstPath
         && request.resource.data.firstSeenAt == resource.data.firstSeenAt
         && validPath(request.resource.data.lastPath)
         && request.resource.data.lastSeenAt == request.time
-        && request.resource.data.visitCount == resource.data.visitCount + 1;
+        && request.resource.data.lastVisitDurationSeconds is int
+        && request.resource.data.totalDurationSeconds is int
+        && (
+          (
+            request.resource.data.visitCount == resource.data.visitCount + 1
+            && request.resource.data.lastVisitDurationSeconds == 0
+            && request.resource.data.totalDurationSeconds
+              == resource.data.get("totalDurationSeconds", 0)
+          )
+          ||
+          (
+            request.resource.data.visitCount == resource.data.visitCount
+            && request.resource.data.totalDurationSeconds
+              > resource.data.get("totalDurationSeconds", 0)
+            && request.resource.data.totalDurationSeconds
+              <= resource.data.get("totalDurationSeconds", 0) + 60
+            && request.resource.data.lastVisitDurationSeconds
+              > resource.data.get("lastVisitDurationSeconds", 0)
+            && request.resource.data.lastVisitDurationSeconds
+              - resource.data.get("lastVisitDurationSeconds", 0)
+              == request.resource.data.totalDurationSeconds
+                - resource.data.get("totalDurationSeconds", 0)
+          )
+        );
       allow read: if owns(uid) || isPortfolioOwner();
       allow delete: if false;
     }

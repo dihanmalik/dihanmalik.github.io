@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react"
-import type { CSSProperties, ReactNode } from "react"
+import { useEffect, useRef, useState } from "react"
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from "react"
 import {
   IconArrowDownRight,
   IconArrowUpRight,
@@ -15,6 +19,8 @@ import {
 import claudeCodeLogo from "@/assets/claudecode.svg?url&no-inline"
 import portrait from "@/assets/me4.png"
 import resume from "@/assets/CV_2026.pdf"
+import RotatingText from "@/components/RotatingText"
+import type { RotatingTextRef } from "@/components/RotatingText"
 import { WebsiteRatingDialog } from "@/components/WebsiteRating"
 import { useTheme } from "@/components/theme-provider"
 import { buttonVariants } from "@/components/ui/button"
@@ -37,6 +43,87 @@ const navItems = [
   ["06", "Contact", "#contact"],
   ["↗", "Explore in 3D", "/explore"],
 ]
+
+const manualSectionIds = navItems.flatMap(([, , href]) =>
+  href.startsWith("#") ? [href.slice(1)] : []
+)
+
+const introductionWordPairs = [
+  ["useful", "fast"],
+  ["reliable", "responsive"],
+  ["accessible", "intuitive"],
+  ["scalable", "efficient"],
+  ["durable", "adaptable"],
+] as const
+const builtWords = introductionWordPairs.map(([built]) => `${built},`)
+const tunedWords = introductionWordPairs.map(([, tuned]) => `${tuned}.`)
+
+function useActiveManualSection() {
+  const [activeSection, setActiveSection] = useState("introduction")
+
+  useEffect(() => {
+    let animationFrame = 0
+
+    const updateActiveSection = () => {
+      window.cancelAnimationFrame(animationFrame)
+      animationFrame = window.requestAnimationFrame(() => {
+        const marker = window.innerHeight * 0.34
+        let nextSection = manualSectionIds[0]
+
+        manualSectionIds.forEach((sectionId) => {
+          const section = document.getElementById(sectionId)
+          if (section && section.getBoundingClientRect().top <= marker) {
+            nextSection = sectionId
+          }
+        })
+
+        if (
+          window.scrollY + window.innerHeight >=
+          document.documentElement.scrollHeight - 2
+        ) {
+          nextSection = manualSectionIds.at(-1) ?? nextSection
+        }
+
+        setActiveSection((current) =>
+          current === nextSection ? current : nextSection
+        )
+      })
+    }
+
+    updateActiveSection()
+    window.addEventListener("scroll", updateActiveSection, { passive: true })
+    window.addEventListener("resize", updateActiveSection)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      window.removeEventListener("scroll", updateActiveSection)
+      window.removeEventListener("resize", updateActiveSection)
+    }
+  }, [])
+
+  return activeSection
+}
+
+function scrollToManualSection(
+  event: ReactMouseEvent<HTMLAnchorElement>,
+  sectionId: string
+) {
+  const section = document.getElementById(sectionId)
+  if (!section) return
+
+  event.preventDefault()
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches
+  section.scrollIntoView({
+    behavior: reduceMotion ? "auto" : "smooth",
+    block: "start",
+  })
+
+  if (window.location.hash !== `#${sectionId}`) {
+    window.history.pushState(null, "", `#${sectionId}`)
+  }
+}
 
 function useScrollReveals() {
   useEffect(() => {
@@ -170,6 +257,8 @@ function FieldManualThemeToggle({ className }: { className?: string }) {
 }
 
 function Sidebar() {
+  const activeSection = useActiveManualSection()
+
   return (
     <aside className="hidden border-r lg:block">
       <div className="sticky top-0 flex min-h-screen flex-col p-6">
@@ -183,18 +272,32 @@ function Sidebar() {
         </a>
 
         <nav className="mt-24 flex flex-col gap-4" aria-label="Page index">
-          {navItems.map(([number, label, href]) => (
-            <a
-              key={number}
-              href={href}
-              className="group grid grid-cols-[2rem_1fr] items-center text-xs"
-            >
-              <span className="text-muted-foreground">{number}</span>
-              <span className="transition-transform group-hover:translate-x-1">
-                {label}
-              </span>
-            </a>
-          ))}
+          {navItems.map(([number, label, href]) => {
+            const sectionId = href.startsWith("#") ? href.slice(1) : null
+            const isActive = sectionId === activeSection
+
+            return (
+              <a
+                key={number}
+                href={href}
+                aria-current={isActive ? "location" : undefined}
+                onClick={
+                  sectionId
+                    ? (event) => scrollToManualSection(event, sectionId)
+                    : undefined
+                }
+                className={cn(
+                  "manual-nav-link group grid grid-cols-[2rem_1fr] items-center text-xs",
+                  isActive && "is-active"
+                )}
+              >
+                <span className="manual-nav-number text-muted-foreground">
+                  {number}
+                </span>
+                <span className="manual-nav-label">{label}</span>
+              </a>
+            )
+          })}
         </nav>
 
         <div className="mt-auto">
@@ -209,7 +312,9 @@ function Sidebar() {
             Enter 3D world
           </a>
           <p className="text-[0.65rem] leading-relaxed tracking-[0.14em] text-muted-foreground uppercase">
-            Frontend engineer
+            Senior frontend developer
+            <br />
+            Full-stack TypeScript developer
             <br />
             Philippines / GMT+8
           </p>
@@ -231,12 +336,16 @@ function Sidebar() {
 }
 
 function Introduction() {
+  const [wordPairIndex, setWordPairIndex] = useState(0)
+  const tunedWordRef = useRef<RotatingTextRef>(null)
+  const [builtWord, tunedWord] = introductionWordPairs[wordPairIndex]
+
   return (
     <section id="introduction" className="scroll-mt-8">
       <div className="flex items-center justify-between border-b px-5 py-3 text-[0.65rem] tracking-[0.16em] uppercase sm:px-10">
         <span>Issue 10 / since 2016</span>
         <span className="hidden sm:inline">
-          Frontend systems & product engineering
+          Senior frontend · Full-stack TypeScript
         </span>
         <span className="flex items-center gap-3">
           <span>Manila time</span>
@@ -251,19 +360,51 @@ function Introduction() {
         <div>
           <p className="mb-8 flex items-center gap-2 text-xs font-semibold">
             <IconCircleFilled className="manual-accent-text" />
-            Senior frontend developer
+            Senior Frontend & Full-stack TypeScript Developer
           </p>
-          <h1 className="manual-title">
-            Built to be <em>used,</em> tuned to be <em>fast.</em>
+          <h1
+            className="manual-title"
+            aria-label={`Built to be ${builtWord}, tuned to be ${tunedWord}.`}
+          >
+            <span aria-hidden="true">
+              Built to be{" "}
+              <em className="manual-rolling-word">
+                <RotatingText
+                  texts={builtWords}
+                  rotationInterval={5_000}
+                  staggerDuration={0.035}
+                  animatePresenceMode="sync"
+                  mainClassName="manual-rotating-text"
+                  onNext={(index) => {
+                    setWordPairIndex(index)
+                    tunedWordRef.current?.jumpTo(index)
+                  }}
+                />
+              </em>
+              <span className="block">
+                tuned to be{" "}
+                <em className="manual-rolling-word">
+                  <RotatingText
+                    ref={tunedWordRef}
+                    texts={tunedWords}
+                    auto={false}
+                    staggerDuration={0.035}
+                    animatePresenceMode="sync"
+                    mainClassName="manual-rotating-text"
+                  />
+                </em>
+              </span>
+            </span>
           </h1>
           <div className="mt-12 grid max-w-4xl gap-7 border-t pt-6 sm:grid-cols-[8rem_1fr]">
             <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
               In brief
             </p>
             <p className="max-w-2xl text-lg leading-relaxed sm:text-xl">
-              I&apos;m Nahid Abdulmalik, you can call me Dihan. I build frontend
-              systems for products with real operational weight—and I stay
-              around to{" "}
+              I&apos;m Nahid Abdulmalik, you can call me Dihan. My core strength
+              is senior frontend engineering, and I also build full-stack
+              TypeScript systems—from thoughtful interfaces to reliable APIs and
+              data flows. I stay around to{" "}
               <span className="manual-highlight font-semibold">
                 make them faster
               </span>
@@ -547,11 +688,11 @@ function AiPractice() {
             A practical note on AI
           </p>
           <h2 className="mt-5 max-w-2xl text-4xl leading-[1.02] font-semibold tracking-tight sm:text-6xl">
-            Frontend specialist. Full-stack capable with the right companion.
+            Senior frontend depth. Full-stack TypeScript delivery.
           </h2>
           <p className="mt-7 max-w-xl leading-relaxed text-muted-foreground">
             I use <strong className="text-foreground">Claude Code</strong> as a
-            context-aware engineering companion to work confidently across the
+            context-aware engineering companion to accelerate work across the
             stack. I understand how to structure the context around the work—not
             just how to ask for code.
           </p>

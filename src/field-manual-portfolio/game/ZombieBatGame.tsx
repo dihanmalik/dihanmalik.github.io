@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react"
+import {
+  IconLogout,
+  IconPlayerPause,
+  IconPlayerPlay,
+} from "@tabler/icons-react"
 
 import {
   recordGameOver,
@@ -9,14 +14,36 @@ import {
 import { cn } from "@/lib/utils"
 
 import "./zombie-game.css"
+import { ARCADE_EXIT_REQUEST_EVENT, returnToPortfolioArcade } from "./game-exit"
 import { LeaderboardDialog, ScoreSubmissionDialog } from "./Leaderboard"
 
-type GamePhase = "setup" | "playing" | "gameover"
+type GamePhase = "setup" | "playing" | "paused" | "gameover"
 type Direction = "left" | "right" | "up" | "down"
 type ZombieKind = "regular" | "boss"
 type WeaponKind = "bat" | "shotgun" | "bazooka" | "laser"
 type ProjectileKind = Exclude<WeaponKind, "bat"> | "rocket"
 type PickupKind = Exclude<WeaponKind, "bat"> | "shield" | "rocket" | "dog"
+
+function shiftGameTimeline(value: unknown, duration: number) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => shiftGameTimeline(entry, duration))
+    return
+  }
+  if (!value || typeof value !== "object") return
+
+  const record = value as Record<string, unknown>
+  Object.entries(record).forEach(([key, entry]) => {
+    if (
+      typeof entry === "number" &&
+      entry > 0 &&
+      (key.endsWith("At") || key.endsWith("Until"))
+    ) {
+      record[key] = entry + duration
+    } else if (entry && typeof entry === "object") {
+      shiftGameTimeline(entry, duration)
+    }
+  })
+}
 
 type Zombie = {
   id: number
@@ -1446,6 +1473,8 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<GameEngine>(createEngine())
   const audioRef = useRef<AudioContext | null>(null)
+  const pausedAtRef = useRef(0)
+  const runFinishedRef = useRef(false)
   const fireHeldRef = useRef(false)
   const mobileAutoTargetRef = useRef(
     typeof window !== "undefined" &&
@@ -1456,6 +1485,8 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
   const [phase, setPhase] = useState<GamePhase>("setup")
   const [finalScore, setFinalScore] = useState(0)
   const [completedRunNumber, setCompletedRunNumber] = useState(0)
+  const [returnAfterScore, setReturnAfterScore] = useState(false)
+  const [scoreDialogOpenKey, setScoreDialogOpenKey] = useState(0)
   const [worldSize, setWorldSize] = useState({
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
@@ -1538,14 +1569,75 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
     engine.nextBossSpawnAt = now + 18_000
     engine.nextPowerBoxAt = now + 7_000
     engineRef.current = engine
+    runFinishedRef.current = false
+    pausedAtRef.current = 0
     fireHeldRef.current = false
     resetJoystick()
     setFinalScore(0)
+    setReturnAfterScore(false)
     setLoadout({ kind: "bat", ammo: 0 })
     setPhase("playing")
     trackInBackground(recordGameStart("night-shift"))
     requestAnimationFrame(() => canvasRef.current?.focus())
   }, [resetJoystick, worldSize])
+
+  const pauseGame = useCallback(() => {
+    if (phase !== "playing") return
+    pausedAtRef.current = performance.now()
+    engineRef.current.keys.clear()
+    fireHeldRef.current = false
+    resetJoystick()
+    if (audioRef.current?.state === "running") void audioRef.current.suspend()
+    setPhase("paused")
+  }, [phase, resetJoystick])
+
+  const resumeGame = useCallback(() => {
+    if (phase !== "paused") return
+    const now = performance.now()
+    shiftGameTimeline(engineRef.current, now - pausedAtRef.current)
+    pausedAtRef.current = 0
+    if (audioRef.current?.state === "suspended") void audioRef.current.resume()
+    setPhase("playing")
+    requestAnimationFrame(() => canvasRef.current?.focus())
+  }, [phase])
+
+  const quitGame = useCallback(() => {
+    if (phase === "setup") {
+      returnToPortfolioArcade()
+      return
+    }
+
+    setReturnAfterScore(true)
+    setScoreDialogOpenKey((current) => current + 1)
+    engineRef.current.keys.clear()
+    fireHeldRef.current = false
+    resetJoystick()
+    if (audioRef.current?.state === "running") void audioRef.current.suspend()
+
+    if (
+      (phase === "playing" || phase === "paused") &&
+      !runFinishedRef.current
+    ) {
+      const score = engineRef.current.score
+      runFinishedRef.current = true
+      setFinalScore(score)
+      setCompletedRunNumber((current) => current + 1)
+      setPhase("gameover")
+      trackInBackground(recordGameOver("night-shift", score))
+    }
+  }, [phase, resetJoystick])
+
+  useEffect(() => {
+    const handleExitRequest = (event: Event) => {
+      if (phase === "setup") return
+      event.preventDefault()
+      quitGame()
+    }
+
+    window.addEventListener(ARCADE_EXIT_REQUEST_EVENT, handleExitRequest)
+    return () =>
+      window.removeEventListener(ARCADE_EXIT_REQUEST_EVENT, handleExitRequest)
+  }, [phase, quitGame])
 
   useEffect(() => {
     return () => {
@@ -2200,6 +2292,7 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
         fireHeldRef.current = false
         playZombieSound(audioRef.current, "gameover")
         triggerZombieHaptic([120, 45, 180])
+        runFinishedRef.current = true
         setFinalScore(engine.score)
         setCompletedRunNumber((current) => current + 1)
         setPhase("gameover")
@@ -2440,6 +2533,34 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
                 onPointerMove={updatePointerAim}
                 onPointerDown={aimAndAttack}
               />
+              {phase === "playing" && (
+                <button
+                  type="button"
+                  className="manual-game-pause-trigger"
+                  onClick={pauseGame}
+                >
+                  <IconPlayerPause aria-hidden="true" />
+                  Pause
+                </button>
+              )}
+              {phase === "paused" && (
+                <div className="manual-game-over manual-game-paused">
+                  <p>Shift paused</p>
+                  <strong>Take a breather</strong>
+                  <button type="button" onClick={resumeGame}>
+                    <IconPlayerPlay aria-hidden="true" />
+                    Resume shift
+                  </button>
+                  <LeaderboardDialog
+                    gameId="night-shift"
+                    gameName="Night Shift"
+                  />
+                  <button type="button" onClick={quitGame}>
+                    <IconLogout aria-hidden="true" />
+                    Quit game
+                  </button>
+                </div>
+              )}
               {phase === "gameover" && (
                 <div className="manual-game-over">
                   <p>Shift over</p>
@@ -2514,6 +2635,8 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
           gameId="night-shift"
           gameName="Night Shift"
           score={finalScore}
+          requestOpenKey={scoreDialogOpenKey}
+          onFinished={returnAfterScore ? returnToPortfolioArcade : undefined}
         />
       ) : null}
     </section>

@@ -171,10 +171,54 @@
   place-items: center;
   color: #f4ead5;
   background: #070706;
+  padding: 1.5rem;
+}
+
+.arcade-game-loader-card {
+  display: flex;
+  width: min(100%, 28rem);
+  flex-direction: column;
+  gap: 0.8rem;
+  border: 1px solid #f4ead5;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  box-shadow: 8px 8px 0 rgb(244 234 213 / 18%);
+}
+
+.arcade-game-loader-card > svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.arcade-game-loader-card p,
+.arcade-game-loader-card > span {
   font-family: monospace;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.arcade-game-loader-card h1 {
+  margin-bottom: 0.75rem;
+  font-size: clamp(2.5rem, 10vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+}
+
+.arcade-game-loader-progress {
+  margin-bottom: 0.35rem;
+  font-family: monospace;
+}
+
+.arcade-game-loader-progress [data-slot="progress-track"] {
+  height: 0.55rem;
+  border: 1px solid #f4ead5;
+  border-radius: 0;
+  background: rgb(244 234 213 / 14%);
+}
+
+.arcade-game-loader-progress [data-slot="progress-indicator"] {
+  background: #f4ead5;
 }
 
 @media (min-width: 640px) {
@@ -193,5 +237,11 @@
 
   .manual-arcade-copy {
     padding: 3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcade-game-loader-progress [data-slot="progress-indicator"] {
+    transition: none;
   }
 }

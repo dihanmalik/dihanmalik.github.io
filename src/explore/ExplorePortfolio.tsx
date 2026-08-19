@@ -1369,9 +1369,11 @@ function StationPanel({
           <IconSparkles className="explore-panel-icon" />
           <h2 id="station-title">Built to be used, tuned to be fast.</h2>
           <p>
-            I&apos;m Nahid Abdulmalik, you can call me Dihan. I build frontend
-            systems for products with real operational weight—and I stay around
-            to make them faster, clearer, and easier to evolve.
+            I&apos;m Nahid Abdulmalik, you can call me Dihan. My core strength
+            is senior frontend engineering, and I also build full-stack
+            TypeScript systems—from thoughtful interfaces to reliable APIs and
+            data flows. I stay around to make them faster, clearer, and easier
+            to evolve.
           </p>
           <img
             className="explore-panel-portrait"
@@ -1501,8 +1503,9 @@ function StationPanel({
           <IconCode className="explore-panel-icon" />
           <h2 id="station-title">Tools change. Good judgment compounds.</h2>
           <p>
-            I work across frontend architecture, real-time interfaces, mapping,
-            data flows, performance, and the backend edges that support them.
+            I work across TypeScript frontends, APIs, real-time interfaces,
+            mapping, data flows, persistence, performance, and the
+            infrastructure edges that support them.
           </p>
           <div className="explore-tech-list">
             {TECH.map((tech) => (
@@ -1520,13 +1523,11 @@ function StationPanel({
 
           <div className="explore-panel-section">
             <p className="explore-panel-kicker">Extending the stack</p>
-            <h3>
-              Frontend specialist. Full-stack capable with the right companion.
-            </h3>
+            <h3>Senior frontend depth. Full-stack TypeScript delivery.</h3>
             <p>
               I use <strong>Claude Code</strong> as a context-aware engineering
-              companion to work confidently across the stack. I understand how
-              to structure the context around the work—not just how to ask for
+              companion to accelerate work across the stack. I understand how to
+              structure the context around the work—not just how to ask for
               code.
             </p>
             <div className="explore-ai-topics">
@@ -1582,11 +1583,15 @@ function StationPanel({
           </h2>
           <p>
             I&apos;m quietly open to a strong team, a useful problem, senior
-            frontend opportunities, and thoughtful product work.
+            frontend and full-stack TypeScript opportunities, and thoughtful
+            product work.
           </p>
           <div className="explore-availability">
             <strong>Currently open for new opportunities</strong>
-            <span>Frontend engineer · Philippines / GMT+8</span>
+            <span>
+              Senior Frontend & Full-stack TypeScript Developer · Philippines /
+              GMT+8
+            </span>
           </div>
           <div className="explore-contact-links">
             <a href="mailto:abdulmaliknahid@gmail.com">

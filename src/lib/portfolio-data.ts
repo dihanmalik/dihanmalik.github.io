@@ -44,6 +44,8 @@ export type VisitorRecord = {
   firstSeenAt: Timestamp
   lastSeenAt: Timestamp
   visitCount: number
+  lastVisitDurationSeconds?: number
+  totalDurationSeconds?: number
 }
 
 export type WebsiteRatingSummary = {
@@ -86,7 +88,7 @@ export async function recordVisit(path: string) {
     !hasTrackingConsent() ||
     sessionStorage.getItem(VISIT_SESSION_KEY)
   ) {
-    return
+    return Boolean(sessionStorage.getItem(VISIT_SESSION_KEY))
   }
   sessionStorage.setItem(VISIT_SESSION_KEY, "true")
 
@@ -106,6 +108,10 @@ export async function recordVisit(path: string) {
           lastPath: path,
           lastSeenAt: serverTimestamp(),
           visitCount: Number(visitor.data().visitCount ?? 0) + 1,
+          lastVisitDurationSeconds: 0,
+          totalDurationSeconds: Number(
+            visitor.data().totalDurationSeconds ?? 0
+          ),
         })
         return
       }
@@ -117,6 +123,8 @@ export async function recordVisit(path: string) {
         firstSeenAt: serverTimestamp(),
         lastSeenAt: serverTimestamp(),
         visitCount: 1,
+        lastVisitDurationSeconds: 0,
+        totalDurationSeconds: 0,
       })
       transaction.set(
         statsRef,
@@ -127,10 +135,41 @@ export async function recordVisit(path: string) {
         { merge: true }
       )
     })
+    return true
   } catch (error) {
     sessionStorage.removeItem(VISIT_SESSION_KEY)
     console.warn("Visitor tracking is unavailable.", error)
+    return false
   }
+}
+
+export async function recordVisitDuration(
+  path: string,
+  durationSeconds: number
+) {
+  if (isOwnerDevice() || !hasTrackingConsent()) return
+
+  const duration = Math.min(60, Math.max(0, Math.floor(durationSeconds)))
+  if (duration < 1) return
+
+  const user = await getAnonymousUser()
+  const visitorRef = doc(firestore, "visitors", user.uid)
+
+  await runTransaction(firestore, async (transaction) => {
+    const visitor = await transaction.get(visitorRef)
+    if (!visitor.exists()) return
+
+    const previous = visitor.data()
+    transaction.update(visitorRef, {
+      lastPath: path,
+      lastSeenAt: serverTimestamp(),
+      visitCount: Number(previous.visitCount ?? 1),
+      lastVisitDurationSeconds:
+        Number(previous.lastVisitDurationSeconds ?? 0) + duration,
+      totalDurationSeconds:
+        Number(previous.totalDurationSeconds ?? 0) + duration,
+    })
+  })
 }
 
 export async function recordGameStart(gameId: GameId) {
@@ -219,6 +258,14 @@ export async function submitLeaderboardScore(
           : previous.bestScoreAt,
     })
   })
+}
+
+export async function getOwnLeaderboardEntry(gameId: GameId) {
+  const user = await getAnonymousUser()
+  const entry = await getDoc(
+    doc(firestore, "leaderboards", gameId, "entries", user.uid)
+  )
+  return entry.exists() ? (entry.data() as LeaderboardEntry) : null
 }
 
 export async function getLeaderboard(
