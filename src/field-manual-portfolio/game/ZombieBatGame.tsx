@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { FormEvent, PointerEvent as ReactPointerEvent } from "react"
-import { observer } from "mobx-react-lite"
+import type { PointerEvent as ReactPointerEvent } from "react"
 
+import {
+  recordGameOver,
+  recordGameStart,
+  trackInBackground,
+} from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
 import "./zombie-game.css"
-import { zombieGameStore } from "./zombieGameStore"
+import { LeaderboardDialog, ScoreSubmissionDialog } from "./Leaderboard"
 
 type GamePhase = "setup" | "playing" | "gameover"
 type Direction = "left" | "right" | "up" | "down"
@@ -104,6 +108,9 @@ type GameEngine = {
   projectiles: Projectile[]
   powerBox: PowerBox | null
   weapon: { kind: WeaponKind; ammo: number }
+  lockedTargetId: number | null
+  aimX: number
+  aimY: number
   shieldUntil: number
   nextShieldDamageAt: number
   rocketExpiries: number[]
@@ -170,7 +177,16 @@ const GAME_COLORS = {
   bloodDark: "#641b27",
 } as const
 
-type ZombieSound = "swing" | "shot" | "hit" | "destroy" | "playerHit" | "pickup" | "shield" | "boss" | "gameover"
+type ZombieSound =
+  | "swing"
+  | "shot"
+  | "hit"
+  | "destroy"
+  | "playerHit"
+  | "pickup"
+  | "shield"
+  | "boss"
+  | "gameover"
 const lastBloodSoundAt = new WeakMap<AudioContext, number>()
 
 function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
@@ -178,21 +194,63 @@ function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
   const oscillator = context.createOscillator()
   const gain = context.createGain()
   const start = context.currentTime
-  const settings: Record<ZombieSound, { from: number; to: number; duration: number; volume: number; wave: OscillatorType }> = {
-    swing: { from: 180, to: 85, duration: 0.09, volume: 0.018, wave: "triangle" },
+  const settings: Record<
+    ZombieSound,
+    {
+      from: number
+      to: number
+      duration: number
+      volume: number
+      wave: OscillatorType
+    }
+  > = {
+    swing: {
+      from: 180,
+      to: 85,
+      duration: 0.09,
+      volume: 0.018,
+      wave: "triangle",
+    },
     shot: { from: 330, to: 95, duration: 0.11, volume: 0.026, wave: "square" },
     hit: { from: 125, to: 58, duration: 0.12, volume: 0.035, wave: "square" },
-    destroy: { from: 210, to: 42, duration: 0.2, volume: 0.045, wave: "sawtooth" },
-    playerHit: { from: 92, to: 32, duration: 0.28, volume: 0.06, wave: "sawtooth" },
-    pickup: { from: 280, to: 720, duration: 0.22, volume: 0.035, wave: "square" },
+    destroy: {
+      from: 210,
+      to: 42,
+      duration: 0.2,
+      volume: 0.045,
+      wave: "sawtooth",
+    },
+    playerHit: {
+      from: 92,
+      to: 32,
+      duration: 0.28,
+      volume: 0.06,
+      wave: "sawtooth",
+    },
+    pickup: {
+      from: 280,
+      to: 720,
+      duration: 0.22,
+      volume: 0.035,
+      wave: "square",
+    },
     shield: { from: 520, to: 180, duration: 0.16, volume: 0.028, wave: "sine" },
     boss: { from: 74, to: 148, duration: 0.5, volume: 0.055, wave: "square" },
-    gameover: { from: 155, to: 38, duration: 0.7, volume: 0.05, wave: "triangle" },
+    gameover: {
+      from: 155,
+      to: 38,
+      duration: 0.7,
+      volume: 0.05,
+      wave: "triangle",
+    },
   }
   const setting = settings[sound]
   oscillator.type = setting.wave
   oscillator.frequency.setValueAtTime(setting.from, start)
-  oscillator.frequency.exponentialRampToValueAtTime(setting.to, start + setting.duration)
+  oscillator.frequency.exponentialRampToValueAtTime(
+    setting.to,
+    start + setting.duration
+  )
   gain.gain.setValueAtTime(setting.volume, start)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + setting.duration)
   oscillator.connect(gain).connect(context.destination)
@@ -213,8 +271,13 @@ function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
       const samples = noiseBuffer.getChannelData(0)
       for (let index = 0; index < samples.length; index += 1) {
         const progress = index / samples.length
-        const envelope = Math.pow(1 - progress, sound === "destroy" ? 1.25 : 2.1)
-        const pulse = 0.62 + Math.sin(progress * Math.PI * (sound === "destroy" ? 18 : 10)) * 0.38
+        const envelope = Math.pow(
+          1 - progress,
+          sound === "destroy" ? 1.25 : 2.1
+        )
+        const pulse =
+          0.62 +
+          Math.sin(progress * Math.PI * (sound === "destroy" ? 18 : 10)) * 0.38
         samples[index] = (Math.random() * 2 - 1) * envelope * pulse
       }
 
@@ -226,9 +289,15 @@ function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
       filter.frequency.setValueAtTime(sound === "destroy" ? 620 : 880, start)
       filter.frequency.exponentialRampToValueAtTime(170, start + duration)
       filter.Q.value = sound === "destroy" ? 1.8 : 1.15
-      splatterGain.gain.setValueAtTime(sound === "destroy" ? 0.052 : 0.026, start)
+      splatterGain.gain.setValueAtTime(
+        sound === "destroy" ? 0.052 : 0.026,
+        start
+      )
       splatterGain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
-      splatter.connect(filter).connect(splatterGain).connect(context.destination)
+      splatter
+        .connect(filter)
+        .connect(splatterGain)
+        .connect(context.destination)
       splatter.start(start)
       splatter.stop(start + duration + 0.01)
     }
@@ -256,7 +325,10 @@ function startZombieMusic(context: AudioContext) {
       const oscillator = context.createOscillator()
       const gain = context.createGain()
       oscillator.type = "square"
-      oscillator.frequency.setValueAtTime(index % 2 === 0 ? 42 : 36, start + offset)
+      oscillator.frequency.setValueAtTime(
+        index % 2 === 0 ? 42 : 36,
+        start + offset
+      )
       gain.gain.setValueAtTime(0.012, start + offset)
       gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.1)
       oscillator.connect(gain).connect(context.destination)
@@ -270,7 +342,11 @@ function startZombieMusic(context: AudioContext) {
 }
 
 function triggerZombieHaptic(pattern: number | number[]) {
-  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return
+  if (
+    typeof navigator === "undefined" ||
+    typeof navigator.vibrate !== "function"
+  )
+    return
   navigator.vibrate(pattern)
 }
 
@@ -293,6 +369,9 @@ function createEngine(width = GAME_WIDTH, height = GAME_HEIGHT): GameEngine {
     projectiles: [],
     powerBox: null,
     weapon: { kind: "bat", ammo: 0 },
+    lockedTargetId: null,
+    aimX: width / 2 + 50,
+    aimY: height / 2,
     shieldUntil: 0,
     nextShieldDamageAt: 0,
     rocketExpiries: [],
@@ -317,6 +396,48 @@ function createEngine(width = GAME_WIDTH, height = GAME_HEIGHT): GameEngine {
     lastHitSoundAt: 0,
     animationFrame: 0,
   }
+}
+
+function aimGunAtPoint(engine: GameEngine, targetX: number, targetY: number) {
+  if (engine.weapon.kind === "bat") return
+  const dx = targetX - engine.player.x
+  const dy = targetY - engine.player.y
+  const distance = Math.hypot(dx, dy)
+  if (distance <= 0.001) return
+  engine.player.facingX = dx / distance
+  engine.player.facingY = dy / distance
+}
+
+function lockNearestGunTarget(engine: GameEngine) {
+  if (engine.weapon.kind === "bat") {
+    engine.lockedTargetId = null
+    return null
+  }
+
+  let nearest: Zombie | null = null
+  let nearestDistance = Infinity
+  for (const zombie of engine.zombies) {
+    const visible =
+      zombie.health > 0 &&
+      zombie.x >= 0 &&
+      zombie.x <= engine.width &&
+      zombie.y >= 0 &&
+      zombie.y <= engine.height
+    if (!visible) continue
+
+    const distance = Math.hypot(
+      zombie.x - engine.player.x,
+      zombie.y - engine.player.y
+    )
+    if (distance < nearestDistance) {
+      nearest = zombie
+      nearestDistance = distance
+    }
+  }
+
+  engine.lockedTargetId = nearest?.id ?? null
+  if (nearest) aimGunAtPoint(engine, nearest.x, nearest.y)
+  return nearest
 }
 
 type BatPose = {
@@ -486,7 +607,8 @@ function drawBloodStains(
 ) {
   stains.forEach((stain) => {
     const fadeStart = stain.expiresAt - 4_000
-    const alpha = now > fadeStart ? Math.max(0, (stain.expiresAt - now) / 4_000) : 0.62
+    const alpha =
+      now > fadeStart ? Math.max(0, (stain.expiresAt - now) / 4_000) : 0.62
     const growth = Math.min(1, (now - stain.createdAt) / 180)
     context.save()
     context.translate(Math.round(stain.x), Math.round(stain.y))
@@ -510,7 +632,8 @@ function drawBloodParticles(
     const duration = particle.expiresAt - particle.createdAt
     const remaining = Math.max(0, particle.expiresAt - now) / duration
     context.globalAlpha = remaining
-    context.fillStyle = remaining > 0.55 ? GAME_COLORS.blood : GAME_COLORS.bloodDark
+    context.fillStyle =
+      remaining > 0.55 ? GAME_COLORS.blood : GAME_COLORS.bloodDark
     context.fillRect(
       Math.round(particle.x),
       Math.round(particle.y),
@@ -605,10 +728,21 @@ function drawPlayer(
     context.fillStyle = skinColor
     context.fillRect(3, -3, 5, 6)
     context.fillStyle = GAME_COLORS.ink
-    const weaponLength = engine.weapon.kind === "shotgun" ? 23 : engine.weapon.kind === "laser" ? 21 : 18
+    const weaponLength =
+      engine.weapon.kind === "shotgun"
+        ? 23
+        : engine.weapon.kind === "laser"
+          ? 21
+          : 18
     const weaponHeight = engine.weapon.kind === "bazooka" ? 7 : 4
-    context.fillRect(6, -Math.floor(weaponHeight / 2), weaponLength, weaponHeight)
-    context.fillStyle = engine.weapon.kind === "laser" ? GAME_COLORS.electric : GAME_COLORS.bat
+    context.fillRect(
+      6,
+      -Math.floor(weaponHeight / 2),
+      weaponLength,
+      weaponHeight
+    )
+    context.fillStyle =
+      engine.weapon.kind === "laser" ? GAME_COLORS.electric : GAME_COLORS.bat
     context.fillRect(9, -1, Math.max(5, weaponLength - 6), 2)
     if (engine.weapon.kind === "bazooka") {
       context.fillStyle = GAME_COLORS.cream
@@ -760,7 +894,8 @@ function drawHitEffects(
   effects.forEach((effect) => {
     const remaining = Math.max(0, effect.expiresAt - now) / 180
     const radius = Math.round(
-      effect.size * (effect.ring ? 1 - remaining * 0.65 : 1.35 - remaining * 0.35)
+      effect.size *
+        (effect.ring ? 1 - remaining * 0.65 : 1.35 - remaining * 0.35)
     )
 
     context.save()
@@ -787,7 +922,11 @@ function drawHitEffects(
   })
 }
 
-function drawPowerBox(context: CanvasRenderingContext2D, box: PowerBox, now: number) {
+function drawPowerBox(
+  context: CanvasRenderingContext2D,
+  box: PowerBox,
+  now: number
+) {
   const pulse = 1 + Math.round((Math.sin(now * 0.008 + box.phase) + 1) * 1.5)
   context.save()
   context.translate(Math.round(box.x), Math.round(box.y))
@@ -813,7 +952,11 @@ function drawPowerBox(context: CanvasRenderingContext2D, box: PowerBox, now: num
   context.restore()
 }
 
-function drawShield(context: CanvasRenderingContext2D, engine: GameEngine, now: number) {
+function drawShield(
+  context: CanvasRenderingContext2D,
+  engine: GameEngine,
+  now: number
+) {
   if (now >= engine.shieldUntil) return
   context.save()
   context.translate(Math.round(engine.player.x), Math.round(engine.player.y))
@@ -830,12 +973,21 @@ function drawShield(context: CanvasRenderingContext2D, engine: GameEngine, now: 
     const angle = now * 0.006 + spark * (Math.PI / 3)
     const distance = 23 + Math.sin(now * 0.02 + spark) * 4
     context.fillStyle = GAME_COLORS.cream
-    context.fillRect(Math.cos(angle) * distance - 1, Math.sin(angle) * distance - 1, 2, 2)
+    context.fillRect(
+      Math.cos(angle) * distance - 1,
+      Math.sin(angle) * distance - 1,
+      2,
+      2
+    )
   }
   context.restore()
 }
 
-function drawDog(context: CanvasRenderingContext2D, engine: GameEngine, now: number) {
+function drawDog(
+  context: CanvasRenderingContext2D,
+  engine: GameEngine,
+  now: number
+) {
   const dog = engine.dog
   if (!dog || now >= engine.dogUntil) return
   const x = Math.round(dog.x)
@@ -861,6 +1013,42 @@ function drawDog(context: CanvasRenderingContext2D, engine: GameEngine, now: num
   context.restore()
 }
 
+function drawTargetLock(
+  context: CanvasRenderingContext2D,
+  engine: GameEngine,
+  now: number
+) {
+  if (engine.weapon.kind === "bat" || engine.lockedTargetId === null) return
+  const target = engine.zombies.find(
+    (zombie) => zombie.id === engine.lockedTargetId && zombie.health > 0
+  )
+  if (!target) return
+
+  const radius =
+    (target.kind === "boss" ? 18 : 11) + Math.sin(now * 0.012) * 1.5
+  const bracket = target.kind === "boss" ? 7 : 5
+  context.save()
+  context.translate(Math.round(target.x), Math.round(target.y))
+  context.strokeStyle = GAME_COLORS.attack
+  context.fillStyle = GAME_COLORS.attack
+  context.globalAlpha = 0.72 + Math.sin(now * 0.018) * 0.2
+  context.lineWidth = 1
+
+  for (let corner = 0; corner < 4; corner += 1) {
+    context.save()
+    context.rotate(corner * (Math.PI / 2))
+    context.beginPath()
+    context.moveTo(-bracket, -radius)
+    context.lineTo(-radius, -radius)
+    context.lineTo(-radius, -bracket)
+    context.stroke()
+    context.restore()
+  }
+
+  context.fillRect(-1, -1, 2, 2)
+  context.restore()
+}
+
 function renderGame(
   canvas: HTMLCanvasElement,
   engine: GameEngine,
@@ -875,8 +1063,10 @@ function renderGame(
   context.setTransform(1, 0, 0, 1, 0, 0)
   context.fillStyle = GAME_COLORS.ground
   context.fillRect(0, 0, engine.width, engine.height)
-  const shakeX = now < engine.shakeUntil ? (Math.random() - 0.5) * engine.shakeStrength : 0
-  const shakeY = now < engine.shakeUntil ? (Math.random() - 0.5) * engine.shakeStrength : 0
+  const shakeX =
+    now < engine.shakeUntil ? (Math.random() - 0.5) * engine.shakeStrength : 0
+  const shakeY =
+    now < engine.shakeUntil ? (Math.random() - 0.5) * engine.shakeStrength : 0
   context.save()
   context.translate(Math.round(shakeX), Math.round(shakeY))
 
@@ -897,13 +1087,22 @@ function renderGame(
     context.save()
     context.translate(Math.round(projectile.x), Math.round(projectile.y))
     context.rotate(Math.atan2(projectile.vy, projectile.vx))
-    context.fillStyle = projectile.kind === "laser"
-      ? GAME_COLORS.electric
-      : projectile.kind === "rocket"
-        ? GAME_COLORS.danger
-        : GAME_COLORS.attack
-    const width = projectile.kind === "laser" ? 9 : projectile.kind === "bazooka" ? 6 : projectile.kind === "rocket" ? 5 : 2
-    const height = projectile.kind === "bazooka" ? 5 : projectile.kind === "rocket" ? 3 : 2
+    context.fillStyle =
+      projectile.kind === "laser"
+        ? GAME_COLORS.electric
+        : projectile.kind === "rocket"
+          ? GAME_COLORS.danger
+          : GAME_COLORS.attack
+    const width =
+      projectile.kind === "laser"
+        ? 9
+        : projectile.kind === "bazooka"
+          ? 6
+          : projectile.kind === "rocket"
+            ? 5
+            : 2
+    const height =
+      projectile.kind === "bazooka" ? 5 : projectile.kind === "rocket" ? 3 : 2
     context.fillRect(-width / 2, -height / 2, width, height)
     if (projectile.kind === "rocket") {
       context.fillStyle = GAME_COLORS.attack
@@ -916,6 +1115,7 @@ function renderGame(
     .slice()
     .sort((a, b) => a.y - b.y)
     .forEach((zombie) => drawZombie(context, zombie, engine.player.x, now))
+  drawTargetLock(context, engine, now)
   drawDog(context, engine, now)
   drawPlayer(context, engine, now)
   drawShield(context, engine, now)
@@ -928,18 +1128,28 @@ function renderGame(
   context.textAlign = "left"
   context.fillText(`KILLS ${String(engine.score).padStart(3, "0")}`, 8, 13)
   context.textAlign = "center"
-  context.fillText(`TIME ${String(elapsed).padStart(3, "0")}`, engine.width / 2, 13)
+  context.fillText(
+    `TIME ${String(elapsed).padStart(3, "0")}`,
+    engine.width / 2,
+    13
+  )
   context.textAlign = "right"
   context.fillText(`HP ${engine.player.health}`, engine.width - 8, 13)
   context.textAlign = "left"
   context.fillText(
-    engine.weapon.kind === "bat" ? "BAT" : `${engine.weapon.kind.toUpperCase()} ${engine.weapon.ammo}`,
+    engine.weapon.kind === "bat"
+      ? "BAT"
+      : `${engine.weapon.kind.toUpperCase()} ${engine.weapon.ammo}`,
     8,
     31
   )
   if (now < engine.shieldUntil) {
     context.fillStyle = GAME_COLORS.electric
-    context.fillText(`SHIELD ${Math.ceil((engine.shieldUntil - now) / 1_000)}s`, 8, 41)
+    context.fillText(
+      `SHIELD ${Math.ceil((engine.shieldUntil - now) / 1_000)}s`,
+      8,
+      41
+    )
   }
   if (engine.rocketExpiries.length > 0) {
     context.fillStyle = GAME_COLORS.attack
@@ -947,7 +1157,11 @@ function renderGame(
   }
   if (engine.dog && now < engine.dogUntil) {
     context.fillStyle = GAME_COLORS.cream
-    context.fillText(`DOG ${Math.ceil((engine.dogUntil - now) / 1_000)}s`, 8, 61)
+    context.fillText(
+      `DOG ${Math.ceil((engine.dogUntil - now) / 1_000)}s`,
+      8,
+      61
+    )
   }
 
   context.fillStyle = GAME_COLORS.danger
@@ -974,22 +1188,28 @@ function renderGame(
   context.restore()
 }
 
-export const ZombieBatGame = observer(function ZombieBatGame({
-  modal = false,
-}: {
-  modal?: boolean
-}) {
+export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<GameEngine>(createEngine())
   const audioRef = useRef<AudioContext | null>(null)
   const fireHeldRef = useRef(false)
+  const mobileAutoTargetRef = useRef(
+    typeof window !== "undefined" &&
+      window.matchMedia("(hover: none) and (pointer: coarse)").matches
+  )
   const joystickRef = useRef({ x: 0, y: 0 })
   const joystickKnobRef = useRef<HTMLSpanElement>(null)
   const [phase, setPhase] = useState<GamePhase>("setup")
-  const [message, setMessage] = useState("")
   const [finalScore, setFinalScore] = useState(0)
-  const [worldSize, setWorldSize] = useState({ width: GAME_WIDTH, height: GAME_HEIGHT })
-  const [loadout, setLoadout] = useState<{ kind: WeaponKind; ammo: number }>({ kind: "bat", ammo: 0 })
+  const [completedRunNumber, setCompletedRunNumber] = useState(0)
+  const [worldSize, setWorldSize] = useState({
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
+  })
+  const [loadout, setLoadout] = useState<{ kind: WeaponKind; ammo: number }>({
+    kind: "bat",
+    ammo: 0,
+  })
 
   const attack = useCallback(() => {
     const engine = engineRef.current
@@ -1010,8 +1230,16 @@ export const ZombieBatGame = observer(function ZombieBatGame({
     }
 
     const { kind } = engine.weapon
+    if (mobileAutoTargetRef.current) {
+      const target = lockNearestGunTarget(engine)
+      if (!target) return
+    } else {
+      engine.lockedTargetId = null
+      aimGunAtPoint(engine, engine.aimX, engine.aimY)
+    }
     const baseAngle = Math.atan2(engine.player.facingY, engine.player.facingX)
-    const angles = kind === "shotgun" ? [-0.36, -0.24, -0.12, 0, 0.12, 0.24, 0.36] : [0]
+    const angles =
+      kind === "shotgun" ? [-0.36, -0.24, -0.12, 0, 0.12, 0.24, 0.36] : [0]
     const speed = kind === "shotgun" ? 145 : kind === "laser" ? 260 : 105
     angles.forEach((offset) => {
       const angle = baseAngle + offset
@@ -1026,10 +1254,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
       })
     })
     engine.weapon.ammo -= 1
-    engine.nextAttackAt = now + (kind === "shotgun" ? 520 : kind === "laser" ? 180 : 720)
+    engine.nextAttackAt =
+      now + (kind === "shotgun" ? 520 : kind === "laser" ? 180 : 720)
     playZombieSound(audioRef.current, "shot")
     triggerZombieHaptic(kind === "bazooka" ? 35 : 14)
-    if (engine.weapon.ammo <= 0) engine.weapon = { kind: "bat", ammo: 0 }
+    if (engine.weapon.ammo <= 0) {
+      engine.weapon = { kind: "bat", ammo: 0 }
+      engine.lockedTargetId = null
+    }
     setLoadout({ ...engine.weapon })
   }, [phase])
 
@@ -1055,9 +1287,9 @@ export const ZombieBatGame = observer(function ZombieBatGame({
     fireHeldRef.current = false
     resetJoystick()
     setFinalScore(0)
-    setMessage("")
     setLoadout({ kind: "bat", ammo: 0 })
     setPhase("playing")
+    trackInBackground(recordGameStart("night-shift"))
     requestAnimationFrame(() => canvasRef.current?.focus())
   }, [resetJoystick, worldSize])
 
@@ -1067,6 +1299,17 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         void audioRef.current.close()
       }
     }
+  }, [])
+
+  useEffect(() => {
+    const query = window.matchMedia("(hover: none) and (pointer: coarse)")
+    const updateTargetingMode = () => {
+      mobileAutoTargetRef.current = query.matches
+      if (!query.matches) engineRef.current.lockedTargetId = null
+    }
+    updateTargetingMode()
+    query.addEventListener("change", updateTargetingMode)
+    return () => query.removeEventListener("change", updateTargetingMode)
   }, [])
 
   useEffect(() => {
@@ -1087,12 +1330,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
 
       const aspect = screenWidth / screenHeight
       const baseAspect = GAME_WIDTH / GAME_HEIGHT
-      const width = aspect >= baseAspect
-        ? Math.max(GAME_WIDTH, Math.round(GAME_HEIGHT * aspect))
-        : GAME_WIDTH
-      const height = aspect >= baseAspect
-        ? GAME_HEIGHT
-        : Math.max(GAME_HEIGHT, Math.round(GAME_WIDTH / aspect))
+      const width =
+        aspect >= baseAspect
+          ? Math.max(GAME_WIDTH, Math.round(GAME_HEIGHT * aspect))
+          : GAME_WIDTH
+      const height =
+        aspect >= baseAspect
+          ? GAME_HEIGHT
+          : Math.max(GAME_HEIGHT, Math.round(GAME_WIDTH / aspect))
       const engine = engineRef.current
       if (engine.width === width && engine.height === height) return
 
@@ -1124,6 +1369,8 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         projectile.x *= scaleX
         projectile.y *= scaleY
       })
+      engine.aimX *= scaleX
+      engine.aimY *= scaleY
       if (engine.powerBox) {
         engine.powerBox.x *= scaleX
         engine.powerBox.y *= scaleY
@@ -1157,8 +1404,6 @@ export const ZombieBatGame = observer(function ZombieBatGame({
       engine.lastFrameAt = now
       const elapsedSeconds = (now - engine.startedAt) / 1000
 
-      if (fireHeldRef.current && engine.weapon.kind !== "bat") attack()
-
       let dx = 0
       let dy = 0
       if (engine.keys.has("left")) dx -= 1
@@ -1177,8 +1422,13 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         const movementStrength = keyboardActive ? 1 : Math.min(1, length)
         dx /= length
         dy /= length
-        engine.player.facingX = dx
-        engine.player.facingY = dy
+        if (
+          engine.weapon.kind === "bat" ||
+          (mobileAutoTargetRef.current && engine.lockedTargetId === null)
+        ) {
+          engine.player.facingX = dx
+          engine.player.facingY = dy
+        }
         engine.player.x = Math.max(
           10,
           Math.min(
@@ -1194,6 +1444,16 @@ export const ZombieBatGame = observer(function ZombieBatGame({
           )
         )
       }
+
+      if (engine.weapon.kind !== "bat") {
+        if (mobileAutoTargetRef.current) {
+          lockNearestGunTarget(engine)
+        } else {
+          engine.lockedTargetId = null
+          aimGunAtPoint(engine, engine.aimX, engine.aimY)
+        }
+      }
+      if (fireHeldRef.current && engine.weapon.kind !== "bat") attack()
 
       if (now >= engine.nextSpawnAt && engine.zombies.length < 45) {
         spawnZombie(engine, elapsedSeconds)
@@ -1218,7 +1478,13 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         engine.nextPowerBoxAt = now + 5_000 + Math.random() * 4_000
       }
       if (!engine.powerBox && now >= engine.nextPowerBoxAt) {
-        const kinds: PickupKind[] = ["shotgun", "bazooka", "laser", "shield", "dog"]
+        const kinds: PickupKind[] = [
+          "shotgun",
+          "bazooka",
+          "laser",
+          "shield",
+          "dog",
+        ]
         if (engine.rocketExpiries.length < 5) kinds.push("rocket")
         engine.powerBox = {
           x: 28 + Math.random() * Math.max(1, engine.width - 56),
@@ -1230,17 +1496,24 @@ export const ZombieBatGame = observer(function ZombieBatGame({
       }
       if (
         engine.powerBox &&
-        Math.hypot(engine.powerBox.x - engine.player.x, engine.powerBox.y - engine.player.y) < 18
+        Math.hypot(
+          engine.powerBox.x - engine.player.x,
+          engine.powerBox.y - engine.player.y
+        ) < 18
       ) {
         const pickup = engine.powerBox
         if (pickup.kind === "shield") {
-          engine.shieldUntil = Math.max(now, engine.shieldUntil) + SHIELD_DURATION
+          engine.shieldUntil =
+            Math.max(now, engine.shieldUntil) + SHIELD_DURATION
           engine.nextShieldDamageAt = now
           playZombieSound(audioRef.current, "shield")
         } else if (pickup.kind === "rocket") {
           if (engine.rocketExpiries.length < 5) {
             engine.rocketExpiries.push(now + ROCKET_DURATION)
-            engine.nextRocketVolleyAt = Math.min(engine.nextRocketVolleyAt || now, now + 350)
+            engine.nextRocketVolleyAt = Math.min(
+              engine.nextRocketVolleyAt || now,
+              now + 350
+            )
           }
           playZombieSound(audioRef.current, "pickup")
         } else if (pickup.kind === "dog") {
@@ -1265,8 +1538,13 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         engine.nextPowerBoxAt = now + 8_000 + Math.random() * 5_000
       }
 
-      engine.rocketExpiries = engine.rocketExpiries.filter((expiry) => expiry > now)
-      if (engine.rocketExpiries.length > 0 && now >= engine.nextRocketVolleyAt) {
+      engine.rocketExpiries = engine.rocketExpiries.filter(
+        (expiry) => expiry > now
+      )
+      if (
+        engine.rocketExpiries.length > 0 &&
+        now >= engine.nextRocketVolleyAt
+      ) {
         engine.nextRocketVolleyAt = now + 1_450
         if (engine.zombies.length > 0) {
           const targets = engine.zombies
@@ -1278,7 +1556,8 @@ export const ZombieBatGame = observer(function ZombieBatGame({
             )
           engine.rocketExpiries.forEach((_, index) => {
             const target = targets[index % targets.length]
-            const launchAngle = (index / Math.max(1, engine.rocketExpiries.length)) * Math.PI * 2
+            const launchAngle =
+              (index / Math.max(1, engine.rocketExpiries.length)) * Math.PI * 2
             const targetAngle = Math.atan2(
               target.y - engine.player.y,
               target.x - engine.player.x
@@ -1300,19 +1579,28 @@ export const ZombieBatGame = observer(function ZombieBatGame({
       if (engine.dog && now >= engine.dogUntil) engine.dog = null
       if (engine.dog) {
         const dog = engine.dog
-        const nearestZombie = engine.zombies.reduce<Zombie | null>((nearest, zombie) => {
-          if (!nearest) return zombie
-          return Math.hypot(zombie.x - dog.x, zombie.y - dog.y) <
-            Math.hypot(nearest.x - dog.x, nearest.y - dog.y)
-            ? zombie
-            : nearest
-        }, null)
+        const nearestZombie = engine.zombies.reduce<Zombie | null>(
+          (nearest, zombie) => {
+            if (!nearest) return zombie
+            return Math.hypot(zombie.x - dog.x, zombie.y - dog.y) <
+              Math.hypot(nearest.x - dog.x, nearest.y - dog.y)
+              ? zombie
+              : nearest
+          },
+          null
+        )
         const zombieDistance = nearestZombie
           ? Math.hypot(nearestZombie.x - dog.x, nearestZombie.y - dog.y)
           : Number.POSITIVE_INFINITY
         const chasing = nearestZombie && zombieDistance < 72
-        const followX = engine.player.x - engine.player.facingX * 15 - engine.player.facingY * 9
-        const followY = engine.player.y - engine.player.facingY * 15 + engine.player.facingX * 9
+        const followX =
+          engine.player.x -
+          engine.player.facingX * 15 -
+          engine.player.facingY * 9
+        const followY =
+          engine.player.y -
+          engine.player.facingY * 15 +
+          engine.player.facingX * 9
         const destinationX = chasing ? nearestZombie.x : followX
         const destinationY = chasing ? nearestZombie.y : followY
         const dogDx = destinationX - dog.x
@@ -1330,7 +1618,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
           dog.attackingUntil = now + 170
           nearestZombie.health -= nearestZombie.kind === "boss" ? 1 : 2
           nearestZombie.hitFlashUntil = now + 130
-          addHitEffect(engine, nearestZombie.x, nearestZombie.y, now, 7, GAME_COLORS.hit)
+          addHitEffect(
+            engine,
+            nearestZombie.x,
+            nearestZombie.y,
+            now,
+            7,
+            GAME_COLORS.hit
+          )
           scatterBlood(engine, nearestZombie.x, nearestZombie.y, now, 7, 23)
           playZombieSound(audioRef.current, "hit")
         }
@@ -1344,9 +1639,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
               ? zombie
               : nearest
           )
-          const angle = Math.atan2(target.y - projectile.y, target.x - projectile.x)
-          projectile.vx += (Math.cos(angle) * 125 - projectile.vx) * Math.min(1, delta * 5)
-          projectile.vy += (Math.sin(angle) * 125 - projectile.vy) * Math.min(1, delta * 5)
+          const angle = Math.atan2(
+            target.y - projectile.y,
+            target.x - projectile.x
+          )
+          projectile.vx +=
+            (Math.cos(angle) * 125 - projectile.vx) * Math.min(1, delta * 5)
+          projectile.vy +=
+            (Math.sin(angle) * 125 - projectile.vy) * Math.min(1, delta * 5)
         }
         projectile.x += projectile.vx * delta
         projectile.y += projectile.vy * delta
@@ -1364,13 +1664,22 @@ export const ZombieBatGame = observer(function ZombieBatGame({
               zombie.hitFlashUntil = now + 150
               scatterBlood(engine, zombie.x, zombie.y, now, 8, 27)
             })
-            addHitEffect(engine, hit.x, hit.y, now, 30, GAME_COLORS.danger, true)
+            addHitEffect(
+              engine,
+              hit.x,
+              hit.y,
+              now,
+              30,
+              GAME_COLORS.danger,
+              true
+            )
             engine.shakeUntil = now + 190
             engine.shakeStrength = 5
             projectile.expired = true
           } else {
             hit.health -= projectile.damage
-            hit.hitFlashUntil = now + (projectile.kind === "bazooka" ? 170 : 110)
+            hit.hitFlashUntil =
+              now + (projectile.kind === "bazooka" ? 170 : 110)
             projectile.hitZombieIds.push(hit.id)
             scatterBlood(
               engine,
@@ -1386,7 +1695,11 @@ export const ZombieBatGame = observer(function ZombieBatGame({
               hit.y,
               now,
               projectile.kind === "bazooka" ? 12 : 6,
-              projectile.kind === "laser" ? GAME_COLORS.electric : projectile.kind === "bazooka" ? GAME_COLORS.attack : GAME_COLORS.hit
+              projectile.kind === "laser"
+                ? GAME_COLORS.electric
+                : projectile.kind === "bazooka"
+                  ? GAME_COLORS.attack
+                  : GAME_COLORS.hit
             )
           }
           if (projectile.kind === "bazooka") {
@@ -1398,11 +1711,16 @@ export const ZombieBatGame = observer(function ZombieBatGame({
           playZombieSound(audioRef.current, "hit")
         }
         if (
-          projectile.x < -20 || projectile.x > engine.width + 20 ||
-          projectile.y < -20 || projectile.y > engine.height + 20
-        ) projectile.expired = true
+          projectile.x < -20 ||
+          projectile.x > engine.width + 20 ||
+          projectile.y < -20 ||
+          projectile.y > engine.height + 20
+        )
+          projectile.expired = true
       })
-      engine.projectiles = engine.projectiles.filter((projectile) => !projectile.expired)
+      engine.projectiles = engine.projectiles.filter(
+        (projectile) => !projectile.expired
+      )
 
       engine.bloodParticles.forEach((particle) => {
         particle.x += particle.vx * delta
@@ -1414,12 +1732,18 @@ export const ZombieBatGame = observer(function ZombieBatGame({
       engine.bloodParticles = engine.bloodParticles.filter(
         (particle) => particle.expiresAt > now
       )
-      engine.bloodStains = engine.bloodStains.filter((stain) => stain.expiresAt > now)
+      engine.bloodStains = engine.bloodStains.filter(
+        (stain) => stain.expiresAt > now
+      )
 
       if (now < engine.shieldUntil && now >= engine.nextShieldDamageAt) {
         engine.nextShieldDamageAt = now + 360
         engine.zombies.forEach((zombie) => {
-          if (Math.hypot(zombie.x - engine.player.x, zombie.y - engine.player.y) > 31) return
+          if (
+            Math.hypot(zombie.x - engine.player.x, zombie.y - engine.player.y) >
+            31
+          )
+            return
           zombie.health -= zombie.kind === "boss" ? 1 : 2
           zombie.hitFlashUntil = now + 130
           addHitEffect(engine, zombie.x, zombie.y, now, 7, GAME_COLORS.electric)
@@ -1437,8 +1761,22 @@ export const ZombieBatGame = observer(function ZombieBatGame({
           engine.shakeStrength = isBoss ? 8 : 4
           playZombieSound(audioRef.current, "destroy")
           triggerZombieHaptic(isBoss ? [75, 35, 110] : 38)
-          addHitEffect(engine, zombie.x, zombie.y, now, isBoss ? 16 : 9, GAME_COLORS.danger)
-          scatterBlood(engine, zombie.x, zombie.y, now, isBoss ? 30 : 18, isBoss ? 48 : 34)
+          addHitEffect(
+            engine,
+            zombie.x,
+            zombie.y,
+            now,
+            isBoss ? 16 : 9,
+            GAME_COLORS.danger
+          )
+          scatterBlood(
+            engine,
+            zombie.x,
+            zombie.y,
+            now,
+            isBoss ? 30 : 18,
+            isBoss ? 48 : 34
+          )
           addBloodStains(engine, zombie.x, zombie.y, now, isBoss)
           return
         }
@@ -1482,7 +1820,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
             isBoss ? 10 : 6,
             GAME_COLORS.hit
           )
-          scatterBlood(engine, zombie.x, zombie.y, now, isBoss ? 12 : 8, isBoss ? 30 : 23)
+          scatterBlood(
+            engine,
+            zombie.x,
+            zombie.y,
+            now,
+            isBoss ? 12 : 8,
+            isBoss ? 30 : 23
+          )
 
           const knockback = isBoss ? 4 : 9
           zombie.x += (toZombieX / Math.max(0.001, attackDistance)) * knockback
@@ -1502,7 +1847,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
               isBoss ? 16 : 9,
               GAME_COLORS.danger
             )
-            scatterBlood(engine, zombie.x, zombie.y, now, isBoss ? 30 : 18, isBoss ? 48 : 34)
+            scatterBlood(
+              engine,
+              zombie.x,
+              zombie.y,
+              now,
+              isBoss ? 30 : 18,
+              isBoss ? 48 : 34
+            )
             addBloodStains(engine, zombie.x, zombie.y, now, isBoss)
             return
           }
@@ -1518,7 +1870,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
             engine.shakeStrength = 3
             playZombieSound(audioRef.current, "shield")
             triggerZombieHaptic(22)
-            addHitEffect(engine, zombie.x, zombie.y, now, 8, GAME_COLORS.electric)
+            addHitEffect(
+              engine,
+              zombie.x,
+              zombie.y,
+              now,
+              8,
+              GAME_COLORS.electric
+            )
             scatterBlood(engine, zombie.x, zombie.y, now, 6, 20)
           } else {
             const damage = isBoss ? 25 : 10
@@ -1536,7 +1895,14 @@ export const ZombieBatGame = observer(function ZombieBatGame({
               isBoss ? 11 : 7,
               GAME_COLORS.danger
             )
-            scatterBlood(engine, engine.player.x, engine.player.y, now, isBoss ? 14 : 8, 27)
+            scatterBlood(
+              engine,
+              engine.player.x,
+              engine.player.y,
+              now,
+              isBoss ? 14 : 8,
+              27
+            )
           }
 
           const playerKnockback = isBoss ? 13 : 6
@@ -1572,7 +1938,9 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         playZombieSound(audioRef.current, "gameover")
         triggerZombieHaptic([120, 45, 180])
         setFinalScore(engine.score)
+        setCompletedRunNumber((current) => current + 1)
         setPhase("gameover")
+        trackInBackground(recordGameOver("night-shift", engine.score))
         return
       }
 
@@ -1646,20 +2014,6 @@ export const ZombieBatGame = observer(function ZombieBatGame({
     }
   }, [attack, phase, resetJoystick])
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const normalizedName = zombieGameStore.characterName.trim()
-
-    if (normalizedName.length < 2 || normalizedName.length > 24) {
-      setMessage("Use a character name between 2 and 24 characters.")
-      return
-    }
-
-    setMessage("")
-    zombieGameStore.registerPlayer()
-    beginGame()
-  }
-
   const updateJoystick = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     const maxTravel = bounds.width * 0.3
@@ -1716,6 +2070,16 @@ export const ZombieBatGame = observer(function ZombieBatGame({
     }
   }
 
+  const updatePointerAim = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (phase !== "playing" || event.pointerType === "touch") return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const engine = engineRef.current
+    engine.aimX = ((event.clientX - bounds.left) / bounds.width) * engine.width
+    engine.aimY = ((event.clientY - bounds.top) / bounds.height) * engine.height
+    engine.lockedTargetId = null
+    aimGunAtPoint(engine, engine.aimX, engine.aimY)
+  }
+
   const aimAndAttack = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (phase !== "playing") {
       return
@@ -1723,15 +2087,24 @@ export const ZombieBatGame = observer(function ZombieBatGame({
 
     event.preventDefault()
     const bounds = event.currentTarget.getBoundingClientRect()
-    const pointerX = ((event.clientX - bounds.left) / bounds.width) * engineRef.current.width
+    const engine = engineRef.current
+    const pointerX =
+      ((event.clientX - bounds.left) / bounds.width) * engine.width
     const pointerY =
-      ((event.clientY - bounds.top) / bounds.height) * engineRef.current.height
-    const player = engineRef.current.player
+      ((event.clientY - bounds.top) / bounds.height) * engine.height
+    const player = engine.player
     const dx = pointerX - player.x
     const dy = pointerY - player.y
     const distance = Math.hypot(dx, dy)
 
-    if (distance > 0.001) {
+    if (event.pointerType !== "touch") {
+      engine.aimX = pointerX
+      engine.aimY = pointerY
+    }
+    if (
+      distance > 0.001 &&
+      (engine.weapon.kind === "bat" || !mobileAutoTargetRef.current)
+    ) {
       player.facingX = dx / distance
       player.facingY = dy / distance
     }
@@ -1768,60 +2141,30 @@ export const ZombieBatGame = observer(function ZombieBatGame({
         </div>
 
         {phase === "setup" ? (
-          <form className="manual-game-form" onSubmit={handleSubmit}>
+          <div className="manual-game-form">
             <div className="manual-game-form-copy">
-              <p className="manual-game-kicker">Player registration</p>
-              <h3>Create your survivor</h3>
+              <p className="manual-game-kicker">Night shift briefing</p>
+              <h3>Clock in before the lights go out.</h3>
               <p>
-                Your player gets a unique ID and stays saved in this browser.
-                Nothing is sent to a server.
+                Attempts and scores use an anonymous browser ID. After each
+                shift, you choose whether to put a name on the leaderboard.
               </p>
             </div>
-
-            <label className="manual-game-field">
-              <span>Character name</span>
-              <input
-                type="text"
-                name="characterName"
-                value={zombieGameStore.characterName}
-                minLength={2}
-                maxLength={24}
-                autoComplete="nickname"
-                placeholder="e.g. Pixel Pat"
-                onChange={(event) =>
-                  zombieGameStore.setCharacterName(event.target.value)
-                }
+            <div className="manual-game-form-actions">
+              <LeaderboardDialog
+                gameId="night-shift"
+                gameName="Night Shift"
+                triggerClassName="manual-game-start"
               />
-            </label>
-
-            <fieldset className="manual-game-role">
-              <legend>I am a...</legend>
-              <div>
-                {(["visitor", "recruiter"] as const).map((option) => (
-                  <label key={option}>
-                    <input
-                      type="radio"
-                      name="role"
-                      value={option}
-                      checked={zombieGameStore.role === option}
-                      onChange={() => zombieGameStore.setRole(option)}
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            {message && (
-              <p className="manual-game-message" role="alert">
-                {message}
-              </p>
-            )}
-
-            <button type="submit" className="manual-game-start">
-              Enter the office →
-            </button>
-          </form>
+              <button
+                type="button"
+                className="manual-game-start"
+                onClick={beginGame}
+              >
+                Enter the office →
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="manual-game-stage">
             <div className="manual-game-screen">
@@ -1830,13 +2173,18 @@ export const ZombieBatGame = observer(function ZombieBatGame({
                 width={worldSize.width}
                 height={worldSize.height}
                 tabIndex={0}
-                aria-label="Pixel survival game. Use the touch controls or move with WASD and attack with Space."
+                aria-label="Pixel survival game. Use touch controls with automatic gun targeting, or use the mouse and keyboard to aim and move."
+                onPointerMove={updatePointerAim}
                 onPointerDown={aimAndAttack}
               />
               {phase === "gameover" && (
                 <div className="manual-game-over">
                   <p>Shift over</p>
                   <strong>{finalScore} zombies cleared</strong>
+                  <LeaderboardDialog
+                    gameId="night-shift"
+                    gameName="Night Shift"
+                  />
                   <button type="button" onClick={beginGame}>
                     Try another shift
                   </button>
@@ -1849,7 +2197,9 @@ export const ZombieBatGame = observer(function ZombieBatGame({
                   aria-label="Analog movement joystick"
                   onPointerDown={engageJoystick}
                   onPointerMove={(event) => {
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    if (
+                      event.currentTarget.hasPointerCapture(event.pointerId)
+                    ) {
                       updateJoystick(event)
                     }
                   }}
@@ -1857,7 +2207,10 @@ export const ZombieBatGame = observer(function ZombieBatGame({
                   onPointerCancel={releaseJoystick}
                   onLostPointerCapture={resetJoystick}
                 >
-                  <span className="manual-game-joystick-ring" aria-hidden="true" />
+                  <span
+                    className="manual-game-joystick-ring"
+                    aria-hidden="true"
+                  />
                   <span
                     ref={joystickKnobRef}
                     className="manual-game-joystick-knob"
@@ -1876,19 +2229,30 @@ export const ZombieBatGame = observer(function ZombieBatGame({
                   }}
                 >
                   {loadout.kind === "bat" ? "BAT" : loadout.kind.toUpperCase()}
-                  <span>{loadout.kind === "bat" ? "Space" : `${loadout.ammo} AMMO`}</span>
+                  <span>
+                    {loadout.kind === "bat" ? "Space" : `${loadout.ammo} AMMO`}
+                  </span>
                 </button>
               </div>
             </div>
 
             <p className="manual-game-help">
-              Touch: drag the joystick to move · hold equipped guns to fire
+              Mobile: guns lock onto the nearest visible zombie
               <br />
-              Keyboard: WASD / arrows to move · hold Space to attack
+              Desktop: aim with the mouse · move with WASD / arrows · hold Space
+              to fire
             </p>
           </div>
         )}
       </div>
+      {phase === "gameover" ? (
+        <ScoreSubmissionDialog
+          key={completedRunNumber}
+          gameId="night-shift"
+          gameName="Night Shift"
+          score={finalScore}
+        />
+      ) : null}
     </section>
   )
-})
+}

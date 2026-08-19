@@ -1,8 +1,10 @@
 packages: []
 
 allowBuilds:
+  '@firebase/util': false
   esbuild: true
   msw: false
+  protobufjs: false
 
 minimumReleaseAgeExclude:
   - mobx-react-lite@5.0.0

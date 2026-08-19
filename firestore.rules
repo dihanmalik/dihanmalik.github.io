@@ -1,0 +1,265 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isPortfolioOwner() {
+      return signedIn()
+        && request.auth.token.email == "abdulmaliknahid@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    function validAudience(value) {
+      return value == "visitor" || value == "recruiter";
+    }
+
+    function validGame(value) {
+      return value == "void-patrol" || value == "night-shift";
+    }
+
+    function validScore(value) {
+      return value is int && value >= 0 && value <= 50000000;
+    }
+
+    function validPath(value) {
+      return value is string && value.size() > 0 && value.size() <= 500;
+    }
+
+    match /siteStats/general {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          "uniqueVisitors",
+          "updatedAt"
+        ])
+        && request.resource.data.uniqueVisitors == 1
+        && request.resource.data.updatedAt == request.time
+        && !exists(
+          /databases/$(database)/documents/visitors/$(request.auth.uid)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/visitors/$(request.auth.uid)
+        );
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "uniqueVisitors",
+          "updatedAt"
+        ])
+        && request.resource.data.uniqueVisitors == resource.data.uniqueVisitors + 1
+        && request.resource.data.updatedAt == request.time
+        && !exists(
+          /databases/$(database)/documents/visitors/$(request.auth.uid)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/visitors/$(request.auth.uid)
+        );
+      allow delete: if false;
+    }
+
+    match /visitors/{uid} {
+      allow create: if owns(uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "firstPath",
+          "lastPath",
+          "firstSeenAt",
+          "lastSeenAt",
+          "visitCount"
+        ])
+        && request.resource.data.uid == uid
+        && validPath(request.resource.data.firstPath)
+        && validPath(request.resource.data.lastPath)
+        && request.resource.data.firstSeenAt == request.time
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.visitCount == 1;
+      allow update: if owns(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "lastPath",
+          "lastSeenAt",
+          "visitCount"
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.firstPath == resource.data.firstPath
+        && request.resource.data.firstSeenAt == resource.data.firstSeenAt
+        && validPath(request.resource.data.lastPath)
+        && request.resource.data.lastSeenAt == request.time
+        && request.resource.data.visitCount == resource.data.visitCount + 1;
+      allow read: if owns(uid) || isPortfolioOwner();
+      allow delete: if false;
+    }
+
+    match /playerProgress/{progressId} {
+      allow read: if owns(resource.data.uid);
+      allow create: if owns(request.resource.data.uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "gameId",
+          "attempts",
+          "completedRuns",
+          "bestScore",
+          "latestScore",
+          "firstPlayedAt",
+          "lastPlayedAt"
+        ])
+        && validGame(request.resource.data.gameId)
+        && request.resource.data.attempts == 1
+        && request.resource.data.completedRuns >= 0
+        && request.resource.data.completedRuns <= 1
+        && validScore(request.resource.data.bestScore)
+        && validScore(request.resource.data.latestScore)
+        && request.resource.data.bestScore >= request.resource.data.latestScore
+        && request.resource.data.firstPlayedAt == request.time
+        && request.resource.data.lastPlayedAt == request.time;
+      allow update: if owns(resource.data.uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "gameId",
+          "attempts",
+          "completedRuns",
+          "bestScore",
+          "latestScore",
+          "firstPlayedAt",
+          "lastPlayedAt"
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.gameId == resource.data.gameId
+        && request.resource.data.firstPlayedAt == resource.data.firstPlayedAt
+        && request.resource.data.lastPlayedAt == request.time
+        && validGame(request.resource.data.gameId)
+        && validScore(request.resource.data.bestScore)
+        && validScore(request.resource.data.latestScore)
+        && request.resource.data.bestScore >= resource.data.bestScore
+        && request.resource.data.bestScore >= request.resource.data.latestScore
+        && (
+          (
+            request.resource.data.attempts == resource.data.attempts + 1
+            && request.resource.data.completedRuns == resource.data.completedRuns
+            && request.resource.data.bestScore == resource.data.bestScore
+            && request.resource.data.latestScore == resource.data.latestScore
+          )
+          ||
+          (
+            request.resource.data.attempts == resource.data.attempts
+            && request.resource.data.completedRuns == resource.data.completedRuns + 1
+          )
+        );
+      allow delete: if false;
+
+      match /runs/{runId} {
+        allow create: if owns(request.resource.data.uid)
+          && request.resource.data.keys().hasOnly([
+            "uid",
+            "gameId",
+            "score",
+            "createdAt"
+          ])
+          && validGame(request.resource.data.gameId)
+          && validScore(request.resource.data.score)
+          && request.resource.data.createdAt == request.time;
+        allow read: if owns(resource.data.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    match /leaderboards/{gameId}/entries/{uid} {
+      allow read: if true;
+      allow create: if owns(uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "gameId",
+          "nickname",
+          "audienceType",
+          "bestScore",
+          "latestScore",
+          "submissions",
+          "createdAt",
+          "updatedAt",
+          "bestScoreAt"
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.gameId == gameId
+        && validGame(gameId)
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 24
+        && validAudience(request.resource.data.audienceType)
+        && validScore(request.resource.data.bestScore)
+        && request.resource.data.bestScore == request.resource.data.latestScore
+        && request.resource.data.submissions == 1
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.bestScoreAt == request.time;
+      allow update: if owns(uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "gameId",
+          "nickname",
+          "audienceType",
+          "bestScore",
+          "latestScore",
+          "submissions",
+          "createdAt",
+          "updatedAt",
+          "bestScoreAt"
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.gameId == resource.data.gameId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 24
+        && validAudience(request.resource.data.audienceType)
+        && validScore(request.resource.data.bestScore)
+        && validScore(request.resource.data.latestScore)
+        && request.resource.data.bestScore >= resource.data.bestScore
+        && request.resource.data.bestScore >= request.resource.data.latestScore
+        && request.resource.data.submissions == resource.data.submissions + 1
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            (
+              request.resource.data.bestScore > resource.data.bestScore
+              || !resource.data.keys().hasAll(["bestScoreAt"])
+            )
+            && request.resource.data.bestScoreAt == request.time
+          )
+          ||
+          (
+            request.resource.data.bestScore == resource.data.bestScore
+            && resource.data.keys().hasAll(["bestScoreAt"])
+            && request.resource.data.bestScoreAt == resource.data.bestScoreAt
+          )
+        );
+      allow delete: if owns(uid);
+    }
+
+    match /websiteRatings/{uid} {
+      allow read: if owns(uid);
+      allow create: if owns(uid)
+        && request.resource.data.keys().hasOnly([
+          "uid",
+          "rating",
+          "audienceType",
+          "createdAt"
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && validAudience(request.resource.data.audienceType)
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

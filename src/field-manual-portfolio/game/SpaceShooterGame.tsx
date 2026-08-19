@@ -10,11 +10,27 @@ import {
   IconVolumeOff,
 } from "@tabler/icons-react"
 
+import {
+  recordGameOver,
+  recordGameStart,
+  trackInBackground,
+} from "@/lib/portfolio-data"
+
 import "./space-shooter.css"
+import { LeaderboardDialog, ScoreSubmissionDialog } from "./Leaderboard"
 
 type Phase = "ready" | "playing" | "gameover"
-type EnemyKind = "drone" | "zigzag" | "tank" | "shooter" | "diver" | "cluster" | "sentry" | "boss"
-type PowerUpKind = "rapid" | "spread" | "shield" | "health" | "laser" | "rocket" | "arm"
+type EnemyKind =
+  | "drone"
+  | "zigzag"
+  | "tank"
+  | "shooter"
+  | "diver"
+  | "cluster"
+  | "sentry"
+  | "boss"
+type PowerUpKind =
+  "rapid" | "spread" | "shield" | "health" | "laser" | "rocket" | "arm"
 
 type Bullet = {
   x: number
@@ -73,7 +89,13 @@ type PowerUp = {
   fixed?: boolean
 }
 type Survivor = { x: number; y: number; speed: number; phase: number }
-type Companion = { x: number; y: number; nextLaserAt: number; laserUntil: number; activeUntil: number }
+type Companion = {
+  x: number
+  y: number
+  nextLaserAt: number
+  laserUntil: number
+  activeUntil: number
+}
 type MeteorEdge = "top" | "right" | "bottom" | "left"
 type Meteor = {
   state: "idle" | "warning" | "active"
@@ -192,7 +214,9 @@ const COLOR_OPTIONS = [
   { id: "pink", label: "Pink", color: "#ff91d2", dim: "#a9658d" },
 ] as const
 type ColorOption = (typeof COLOR_OPTIONS)[number]
-const NUMBER_FORMATTER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
+const NUMBER_FORMATTER = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 0,
+})
 const POWER_LABELS: Record<PowerUpKind, string> = {
   rapid: "R",
   spread: "S",
@@ -220,7 +244,14 @@ const POWER_LIMITS: Record<PowerUpKind, number> = {
   rocket: 5,
   arm: 1,
 }
-const STACKABLE_POWER_KINDS: PowerUpKind[] = ["rapid", "spread", "shield", "health", "laser", "rocket"]
+const STACKABLE_POWER_KINDS: PowerUpKind[] = [
+  "rapid",
+  "spread",
+  "shield",
+  "health",
+  "laser",
+  "rocket",
+]
 const SHIP_LONG_POWER_KINDS: PowerUpKind[] = ["rapid", "spread"]
 const BOSS_PERMANENT_POWER_KINDS: PowerUpKind[] = ["shield", "laser", "rocket"]
 
@@ -263,7 +294,13 @@ function createEngine(): Engine {
     shakeStrength: 0,
     powerStacks: [],
     powerExpiresAt: {
-      rapid: [], spread: [], shield: [], health: [], laser: [], rocket: [], arm: [],
+      rapid: [],
+      spread: [],
+      shield: [],
+      health: [],
+      laser: [],
+      rocket: [],
+      arm: [],
     },
     companions: Array.from({ length: 3 }, (_, index) => ({
       x: WIDTH / 2 + (index - 1) * 32,
@@ -323,7 +360,14 @@ function overlaps(
   return Math.abs(ax - bx) * 2 < aw + bw && Math.abs(ay - by) * 2 < ah + bh
 }
 
-function burst(engine: Engine, x: number, y: number, amount: number, force = 95, lifeMultiplier = 1) {
+function burst(
+  engine: Engine,
+  x: number,
+  y: number,
+  amount: number,
+  force = 95,
+  lifeMultiplier = 1
+) {
   for (let index = 0; index < amount; index += 1) {
     const angle = Math.random() * Math.PI * 2
     const speed = 18 + Math.random() * force
@@ -343,22 +387,37 @@ function burst(engine: Engine, x: number, y: number, amount: number, force = 95,
 function promoteBossPermanentStacks(engine: Engine, now: number) {
   BOSS_PERMANENT_POWER_KINDS.forEach((kind) => {
     const expirations = engine.powerExpiresAt[kind]
-    const permanentCount = expirations.filter((expiresAt) => !Number.isFinite(expiresAt)).length
-    let promotionsRemaining = Math.max(0, engine.permanentStackLimit - permanentCount)
+    const permanentCount = expirations.filter(
+      (expiresAt) => !Number.isFinite(expiresAt)
+    ).length
+    let promotionsRemaining = Math.max(
+      0,
+      engine.permanentStackLimit - permanentCount
+    )
 
-    for (let index = 0; index < expirations.length && promotionsRemaining > 0; index += 1) {
+    for (
+      let index = 0;
+      index < expirations.length && promotionsRemaining > 0;
+      index += 1
+    ) {
       if (!Number.isFinite(expirations[index])) continue
       expirations[index] = Number.POSITIVE_INFINITY
       promotionsRemaining -= 1
     }
 
     if (kind === "laser") {
-      const permanentLasers = expirations.filter((expiresAt) => !Number.isFinite(expiresAt)).length
+      const permanentLasers = expirations.filter(
+        (expiresAt) => !Number.isFinite(expiresAt)
+      ).length
       const permanentCompanions = engine.companions.filter(
         (companion) => !Number.isFinite(companion.activeUntil)
       ).length
       const companionsToPromote = engine.companions
-        .filter((companion) => now < companion.activeUntil && Number.isFinite(companion.activeUntil))
+        .filter(
+          (companion) =>
+            now < companion.activeUntil &&
+            Number.isFinite(companion.activeUntil)
+        )
         .sort((a, b) => b.activeUntil - a.activeUntil)
         .slice(0, Math.max(0, permanentLasers - permanentCompanions))
       companionsToPromote.forEach((companion) => {
@@ -370,7 +429,11 @@ function promoteBossPermanentStacks(engine: Engine, now: number) {
 
 function triggerHaptic(pattern: number | number[], enabled = true) {
   if (!enabled) return
-  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return
+  if (
+    typeof navigator === "undefined" ||
+    typeof navigator.vibrate !== "function"
+  )
+    return
   navigator.vibrate(pattern)
 }
 
@@ -383,9 +446,10 @@ function aimMeteorAt(meteor: Meteor, targetX: number, targetY: number) {
 }
 
 function startMeteorWarning(engine: Engine, now: number) {
-  const edges: MeteorEdge[] = engine.level >= 8
-    ? ["top", "right", "bottom", "left"]
-    : ["top", "right", "left"]
+  const edges: MeteorEdge[] =
+    engine.level >= 8
+      ? ["top", "right", "bottom", "left"]
+      : ["top", "right", "left"]
   const edge = edges[Math.floor(Math.random() * edges.length)]
   const padding = 34
   let x: number
@@ -420,7 +484,15 @@ function startMeteorWarning(engine: Engine, now: number) {
   engine.meteors.push(meteor)
 }
 
-type GameSound = "shot" | "collision" | "playerHit" | "enemyDestroyed" | "powerup" | "boss" | "meteorAlert" | "meteorLaunch"
+type GameSound =
+  | "shot"
+  | "collision"
+  | "playerHit"
+  | "enemyDestroyed"
+  | "powerup"
+  | "boss"
+  | "meteorAlert"
+  | "meteorLaunch"
 
 function playGameSound(context: AudioContext | null, sound: GameSound) {
   if (!context || context.state !== "running") return
@@ -432,7 +504,10 @@ function playGameSound(context: AudioContext | null, sound: GameSound) {
       const gain = context.createGain()
       const pulseStart = start + pulse * 0.13
       oscillator.type = "square"
-      oscillator.frequency.setValueAtTime(pulse % 2 === 0 ? 880 : 660, pulseStart)
+      oscillator.frequency.setValueAtTime(
+        pulse % 2 === 0 ? 880 : 660,
+        pulseStart
+      )
       gain.gain.setValueAtTime(0.028, pulseStart)
       gain.gain.exponentialRampToValueAtTime(0.0001, pulseStart + 0.09)
       oscillator.connect(gain).connect(context.destination)
@@ -500,7 +575,11 @@ function playGameSound(context: AudioContext | null, sound: GameSound) {
 
   if (sound === "collision") {
     const duration = 0.065
-    const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate)
+    const buffer = context.createBuffer(
+      1,
+      Math.ceil(context.sampleRate * duration),
+      context.sampleRate
+    )
     const channel = buffer.getChannelData(0)
     for (let index = 0; index < channel.length; index += 1) {
       const fade = 1 - index / channel.length
@@ -551,11 +630,17 @@ function playGameSound(context: AudioContext | null, sound: GameSound) {
   })
 }
 
-function startBackgroundMusic(context: AudioContext, isBossFight: () => boolean) {
+function startBackgroundMusic(
+  context: AudioContext,
+  isBossFight: () => boolean
+) {
   const master = context.createGain()
   master.gain.value = 0.018
   master.connect(context.destination)
-  const melody = [220, 277, 330, 415, 330, 277, 247, 330, 220, 277, 370, 415, 370, 330, 277, 247]
+  const melody = [
+    220, 277, 330, 415, 330, 277, 247, 330, 220, 277, 370, 415, 370, 330, 277,
+    247,
+  ]
 
   const schedulePattern = () => {
     if (context.state !== "running") return
@@ -630,15 +715,21 @@ function startBackgroundMusic(context: AudioContext, isBossFight: () => boolean)
 
 function spawnEnemy(engine: Engine, now: number, kind?: EnemyKind) {
   const roll = Math.random()
-  const selected = kind ?? (
-    engine.level >= 5 && roll < 0.1 ? "sentry"
-      : roll < 0.2 ? "tank"
-      : roll < 0.27 ? "zigzag"
-        : roll < 0.4 ? "shooter"
-          : roll < 0.52 ? "diver"
-            : roll < 0.68 ? "cluster"
-              : "drone"
-  )
+  const selected =
+    kind ??
+    (engine.level >= 5 && roll < 0.1
+      ? "sentry"
+      : roll < 0.2
+        ? "tank"
+        : roll < 0.27
+          ? "zigzag"
+          : roll < 0.4
+            ? "shooter"
+            : roll < 0.52
+              ? "diver"
+              : roll < 0.68
+                ? "cluster"
+                : "drone")
 
   if (selected === "cluster") {
     const centerX = 60 + Math.random() * (WIDTH - 120)
@@ -673,8 +764,28 @@ function spawnEnemy(engine: Engine, now: number, kind?: EnemyKind) {
   const shooter = selected === "shooter"
   const diver = selected === "diver"
   const sentry = selected === "sentry"
-  const width = boss ? 126 : tank ? 42 : shooter ? 34 : sentry ? 34 : diver ? 30 : 28
-  const height = boss ? 72 : tank ? 38 : shooter ? 28 : sentry ? 34 : diver ? 32 : 24
+  const width = boss
+    ? 126
+    : tank
+      ? 42
+      : shooter
+        ? 34
+        : sentry
+          ? 34
+          : diver
+            ? 30
+            : 28
+  const height = boss
+    ? 72
+    : tank
+      ? 38
+      : shooter
+        ? 28
+        : sentry
+          ? 34
+          : diver
+            ? 32
+            : 24
   const health = boss
     ? 140 + engine.level * 32
     : tank
@@ -683,9 +794,9 @@ function spawnEnemy(engine: Engine, now: number, kind?: EnemyKind) {
         ? 4 + Math.floor(engine.level / 3)
         : sentry
           ? 7 + Math.floor(engine.level / 2)
-        : diver
-          ? 3 + Math.floor(engine.level / 4)
-          : 2 + Math.floor(engine.level / 4)
+          : diver
+            ? 3 + Math.floor(engine.level / 4)
+            : 2 + Math.floor(engine.level / 4)
 
   engine.enemies.push({
     id: engine.nextEnemyId,
@@ -696,22 +807,35 @@ function spawnEnemy(engine: Engine, now: number, kind?: EnemyKind) {
     height,
     health,
     maxHealth: health,
-    speed: boss ? 32 : (tank ? 42 : shooter ? 50 : sentry ? 64 : diver ? 86 : 68) + engine.level * 4,
+    speed: boss
+      ? 32
+      : (tank ? 42 : shooter ? 50 : sentry ? 64 : diver ? 86 : 68) +
+        engine.level * 4,
     phase: Math.random() * Math.PI * 2,
     nextShotAt: now + (boss ? 900 : 1800 + Math.random() * 1200),
     hitUntil: 0,
-    variant: boss ? Math.max(0, engine.bossNumber - 1) % 5 : Math.floor(Math.random() * 3),
+    variant: boss
+      ? Math.max(0, engine.bossNumber - 1) % 5
+      : Math.floor(Math.random() * 3),
     lastRippleId: 0,
     lastArmId: 0,
     chargeState: "idle",
     chargeAt: 0,
     chargeTargetX: 0,
   })
-  if (boss) engine.bossIntroUntil = now + Math.min(9_000, 6_000 + engine.bossNumber * 500)
+  if (boss)
+    engine.bossIntroUntil =
+      now + Math.min(9_000, 6_000 + engine.bossNumber * 500)
   engine.nextEnemyId += 1
 }
 
-function drawPixelShip(context: CanvasRenderingContext2D, x: number, y: number, now: number, shield: boolean) {
+function drawPixelShip(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  now: number,
+  shield: boolean
+) {
   context.save()
   context.translate(Math.round(x), Math.round(y))
   context.scale(0.82, 0.82)
@@ -744,14 +868,24 @@ function drawPixelShip(context: CanvasRenderingContext2D, x: number, y: number, 
   context.restore()
 }
 
-function drawAnimatedShip(context: CanvasRenderingContext2D, engine: Engine, now: number) {
+function drawAnimatedShip(
+  context: CanvasRenderingContext2D,
+  engine: Engine,
+  now: number
+) {
   const rippleActive = now < engine.ripple.until
   const armActive = now < engine.armAttack.until
   const rippleProgress = rippleActive
-    ? Math.max(0, Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS))
+    ? Math.max(
+        0,
+        Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS)
+      )
     : 0
   const armProgress = armActive
-    ? Math.max(0, Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS))
+    ? Math.max(
+        0,
+        Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS)
+      )
     : 0
 
   if (rippleActive) {
@@ -762,9 +896,19 @@ function drawAnimatedShip(context: CanvasRenderingContext2D, engine: Engine, now
     context.globalAlpha = Math.max(0.2, 1 - rippleProgress)
     context.strokeStyle = GAME_COLORS.ship
     context.lineWidth = 2
-    context.strokeRect(-orbitRadius, -orbitRadius, orbitRadius * 2, orbitRadius * 2)
+    context.strokeRect(
+      -orbitRadius,
+      -orbitRadius,
+      orbitRadius * 2,
+      orbitRadius * 2
+    )
     context.rotate(Math.PI / 4)
-    context.strokeRect(-orbitRadius * 0.72, -orbitRadius * 0.72, orbitRadius * 1.44, orbitRadius * 1.44)
+    context.strokeRect(
+      -orbitRadius * 0.72,
+      -orbitRadius * 0.72,
+      orbitRadius * 1.44,
+      orbitRadius * 1.44
+    )
     context.fillStyle = GAME_COLORS.ship
     for (let index = 0; index < 8; index += 1) {
       const angle = (index / 8) * Math.PI * 2
@@ -792,14 +936,26 @@ function drawAnimatedShip(context: CanvasRenderingContext2D, engine: Engine, now
     context.stroke()
     context.setLineDash([])
     context.fillStyle = GAME_COLORS.ship
-    context.fillRect(engine.ship.x - bracketDistance - 12, engine.ship.y - 13, 12, 5)
+    context.fillRect(
+      engine.ship.x - bracketDistance - 12,
+      engine.ship.y - 13,
+      12,
+      5
+    )
     context.fillRect(engine.ship.x + bracketDistance, engine.ship.y - 13, 12, 5)
-    context.fillRect(engine.ship.x - bracketDistance - 12, engine.ship.y + 8, 12, 5)
+    context.fillRect(
+      engine.ship.x - bracketDistance - 12,
+      engine.ship.y + 8,
+      12,
+      5
+    )
     context.fillRect(engine.ship.x + bracketDistance, engine.ship.y + 8, 12, 5)
     context.restore()
   }
 
-  const recoilY = armActive ? -Math.sin(Math.min(1, armProgress * 2.4) * Math.PI) * 18 : 0
+  const recoilY = armActive
+    ? -Math.sin(Math.min(1, armProgress * 2.4) * Math.PI) * 18
+    : 0
   const rotation = rippleActive
     ? rippleProgress * Math.PI * 2
     : armActive
@@ -812,16 +968,29 @@ function drawAnimatedShip(context: CanvasRenderingContext2D, engine: Engine, now
       : 1
 
   context.save()
-  context.translate(Math.round(engine.ship.x), Math.round(engine.ship.y + recoilY))
+  context.translate(
+    Math.round(engine.ship.x),
+    Math.round(engine.ship.y + recoilY)
+  )
   context.rotate(rotation)
   context.scale(abilityScale, abilityScale)
   drawPixelShip(context, 0, 0, now, engine.powerStacks.includes("shield"))
   context.restore()
 }
 
-function drawDestroyedShip(context: CanvasRenderingContext2D, engine: Engine, now: number) {
-  const duration = Math.max(1, engine.ship.destroyedUntil - engine.ship.destroyedAt)
-  const progress = Math.max(0, Math.min(1, (now - engine.ship.destroyedAt) / duration))
+function drawDestroyedShip(
+  context: CanvasRenderingContext2D,
+  engine: Engine,
+  now: number
+) {
+  const duration = Math.max(
+    1,
+    engine.ship.destroyedUntil - engine.ship.destroyedAt
+  )
+  const progress = Math.max(
+    0,
+    Math.min(1, (now - engine.ship.destroyedAt) / duration)
+  )
   const distance = 12 + progress * 72
   context.save()
   context.translate(Math.round(engine.ship.x), Math.round(engine.ship.y))
@@ -837,7 +1006,10 @@ function drawDestroyedShip(context: CanvasRenderingContext2D, engine: Engine, no
     const fragmentDistance = distance * (0.72 + (index % 3) * 0.16)
     const size = index % 4 === 0 ? 8 : 5
     context.save()
-    context.translate(Math.cos(angle) * fragmentDistance, Math.sin(angle) * fragmentDistance)
+    context.translate(
+      Math.cos(angle) * fragmentDistance,
+      Math.sin(angle) * fragmentDistance
+    )
     context.rotate(angle + progress * (index % 2 === 0 ? 5 : -5))
     context.fillRect(-size / 2, -2, size, 4)
     context.restore()
@@ -845,7 +1017,11 @@ function drawDestroyedShip(context: CanvasRenderingContext2D, engine: Engine, no
   context.restore()
 }
 
-function drawEnemy(context: CanvasRenderingContext2D, enemy: Enemy, now: number) {
+function drawEnemy(
+  context: CanvasRenderingContext2D,
+  enemy: Enemy,
+  now: number
+) {
   const flash = now < enemy.hitUntil
   context.save()
   context.translate(Math.round(enemy.x), Math.round(enemy.y))
@@ -1036,13 +1212,26 @@ function drawCompanion(
   chargeTime: number
 ) {
   const isFiring = now < companion.laserUntil
-  const charge = Math.max(0, Math.min(1, 1 - (companion.nextLaserAt - now) / chargeTime))
+  const charge = Math.max(
+    0,
+    Math.min(1, 1 - (companion.nextLaserAt - now) / chargeTime)
+  )
 
   if (isFiring) {
     context.fillStyle = GAME_COLORS.shipDim
-    context.fillRect(Math.round(companion.x - 3), 48, 7, Math.round(companion.y - 55))
+    context.fillRect(
+      Math.round(companion.x - 3),
+      48,
+      7,
+      Math.round(companion.y - 55)
+    )
     context.fillStyle = GAME_COLORS.ship
-    context.fillRect(Math.round(companion.x - 1), 48, 3, Math.round(companion.y - 55))
+    context.fillRect(
+      Math.round(companion.x - 1),
+      48,
+      3,
+      Math.round(companion.y - 55)
+    )
   }
 
   context.save()
@@ -1061,7 +1250,11 @@ function drawCompanion(
   context.restore()
 }
 
-function drawSurvivor(context: CanvasRenderingContext2D, survivor: Survivor, now: number) {
+function drawSurvivor(
+  context: CanvasRenderingContext2D,
+  survivor: Survivor,
+  now: number
+) {
   const bob = Math.sin(survivor.phase) * 2
   context.save()
   context.translate(Math.round(survivor.x), Math.round(survivor.y + bob))
@@ -1088,7 +1281,11 @@ function drawSurvivor(context: CanvasRenderingContext2D, survivor: Survivor, now
   context.restore()
 }
 
-function drawMeteor(context: CanvasRenderingContext2D, meteor: Meteor, now: number) {
+function drawMeteor(
+  context: CanvasRenderingContext2D,
+  meteor: Meteor,
+  now: number
+) {
   const angle = Math.atan2(meteor.vy, meteor.vx)
   if (meteor.state === "warning") {
     const blink = Math.floor(now / 120) % 2 === 0
@@ -1103,8 +1300,14 @@ function drawMeteor(context: CanvasRenderingContext2D, meteor: Meteor, now: numb
     context.stroke()
     context.setLineDash([])
 
-    const markerX = Math.max(20, Math.min(WIDTH - 20, meteor.x + meteor.vx * 48))
-    const markerY = Math.max(68, Math.min(HEIGHT - 42, meteor.y + meteor.vy * 48))
+    const markerX = Math.max(
+      20,
+      Math.min(WIDTH - 20, meteor.x + meteor.vx * 48)
+    )
+    const markerY = Math.max(
+      68,
+      Math.min(HEIGHT - 42, meteor.y + meteor.vy * 48)
+    )
     context.translate(Math.round(markerX), Math.round(markerY))
     context.rotate(angle)
     context.fillStyle = GAME_COLORS.enemy
@@ -1145,8 +1348,19 @@ function drawMeteor(context: CanvasRenderingContext2D, meteor: Meteor, now: numb
   context.restore()
 }
 
-function drawBossDestruction(context: CanvasRenderingContext2D, destruction: BossDestruction, now: number) {
-  const progress = Math.max(0, Math.min(1, (now - destruction.startedAt) / (destruction.until - destruction.startedAt)))
+function drawBossDestruction(
+  context: CanvasRenderingContext2D,
+  destruction: BossDestruction,
+  now: number
+) {
+  const progress = Math.max(
+    0,
+    Math.min(
+      1,
+      (now - destruction.startedAt) /
+        (destruction.until - destruction.startedAt)
+    )
+  )
   const alpha = 1 - progress
   context.save()
   context.translate(Math.round(destruction.x), Math.round(destruction.y))
@@ -1154,7 +1368,10 @@ function drawBossDestruction(context: CanvasRenderingContext2D, destruction: Bos
   context.strokeStyle = GAME_COLORS.enemy
   context.lineWidth = Math.max(1, 6 - progress * 5)
   for (let ring = 0; ring < 3; ring += 1) {
-    const delayedProgress = Math.max(0, Math.min(1, progress * 1.35 - ring * 0.16))
+    const delayedProgress = Math.max(
+      0,
+      Math.min(1, progress * 1.35 - ring * 0.16)
+    )
     context.globalAlpha = alpha * (1 - delayedProgress * 0.45)
     context.beginPath()
     context.arc(0, 0, 18 + delayedProgress * (105 + ring * 34), 0, Math.PI * 2)
@@ -1163,9 +1380,16 @@ function drawBossDestruction(context: CanvasRenderingContext2D, destruction: Bos
   context.restore()
 }
 
-function drawBossChargeWarning(context: CanvasRenderingContext2D, engine: Engine, now: number) {
-  const boss = engine.enemies.find((enemy) =>
-    enemy.kind === "boss" && enemy.variant === 4 && enemy.chargeState === "warning"
+function drawBossChargeWarning(
+  context: CanvasRenderingContext2D,
+  engine: Engine,
+  now: number
+) {
+  const boss = engine.enemies.find(
+    (enemy) =>
+      enemy.kind === "boss" &&
+      enemy.variant === 4 &&
+      enemy.chargeState === "warning"
   )
   if (!boss) return
   const blink = Math.floor(now / 110) % 2 === 0
@@ -1187,7 +1411,11 @@ function drawBossChargeWarning(context: CanvasRenderingContext2D, engine: Engine
   context.restore()
 }
 
-function drawParallaxBackground(context: CanvasRenderingContext2D, engine: Engine, now: number) {
+function drawParallaxBackground(
+  context: CanvasRenderingContext2D,
+  engine: Engine,
+  now: number
+) {
   const layers = [
     { count: 48, speed: 0.006, parallax: 0.018, size: 1, alpha: 0.2 },
     { count: 34, speed: 0.014, parallax: 0.045, size: 1, alpha: 0.42 },
@@ -1201,7 +1429,9 @@ function drawParallaxBackground(context: CanvasRenderingContext2D, engine: Engin
     for (let index = 0; index < layer.count; index += 1) {
       const seedX = (index * (79 + layerIndex * 14) + layerIndex * 131) % WIDTH
       const seedY = (index * (127 + layerIndex * 10) + layerIndex * 83) % HEIGHT
-      const x = ((seedX - shipOffset * layer.parallax + WIDTH) % WIDTH + WIDTH) % WIDTH
+      const x =
+        (((seedX - shipOffset * layer.parallax + WIDTH) % WIDTH) + WIDTH) %
+        WIDTH
       const y = (seedY + now * layer.speed) % HEIGHT
       context.fillRect(Math.round(x), Math.round(y), layer.size, layer.size)
       if (layerIndex === 2 && index % 5 === 0) {
@@ -1214,11 +1444,19 @@ function drawParallaxBackground(context: CanvasRenderingContext2D, engine: Engin
   context.globalAlpha = 1
 }
 
-function render(context: CanvasRenderingContext2D, engine: Engine, now: number) {
+function render(
+  context: CanvasRenderingContext2D,
+  engine: Engine,
+  now: number
+) {
   Object.assign(GAME_COLORS, engine.colors)
   const shaking = engine.timeScale > 0.02 && now < engine.shakeUntil
-  const shakeX = shaking ? (Math.random() - 0.5) * engine.shakeStrength * engine.timeScale : 0
-  const shakeY = shaking ? (Math.random() - 0.5) * engine.shakeStrength * engine.timeScale : 0
+  const shakeX = shaking
+    ? (Math.random() - 0.5) * engine.shakeStrength * engine.timeScale
+    : 0
+  const shakeY = shaking
+    ? (Math.random() - 0.5) * engine.shakeStrength * engine.timeScale
+    : 0
 
   context.save()
   context.fillStyle = GAME_COLORS.background
@@ -1227,12 +1465,17 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
 
   drawParallaxBackground(context, engine, now)
 
-  engine.bossDestructions.forEach((destruction) => drawBossDestruction(context, destruction, now))
+  engine.bossDestructions.forEach((destruction) =>
+    drawBossDestruction(context, destruction, now)
+  )
   engine.meteors.forEach((meteor) => drawMeteor(context, meteor, now))
   drawBossChargeWarning(context, engine, now)
 
   if (now < engine.ripple.until) {
-    const progress = Math.max(0, Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS))
+    const progress = Math.max(
+      0,
+      Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS)
+    )
     const radius = (1 - Math.pow(1 - progress, 3)) * 520
     context.save()
     context.globalAlpha = Math.max(0, 1 - progress)
@@ -1244,13 +1487,22 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
     context.globalAlpha *= 0.55
     context.lineWidth = 2
     context.beginPath()
-    context.arc(engine.ripple.x, engine.ripple.y, Math.max(0, radius - 18), 0, Math.PI * 2)
+    context.arc(
+      engine.ripple.x,
+      engine.ripple.y,
+      Math.max(0, radius - 18),
+      0,
+      Math.PI * 2
+    )
     context.stroke()
     context.restore()
   }
 
   if (now < engine.armAttack.until) {
-    const progress = Math.max(0, Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS))
+    const progress = Math.max(
+      0,
+      Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS)
+    )
     const reach = getArmReach(progress)
     const fistY = HEIGHT + 40 - reach
     context.save()
@@ -1264,7 +1516,12 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
     context.fillRect(-58, Math.round(fistY + 4), 116, 64)
     context.fillRect(-73, Math.round(fistY + 30), 21, 39)
     ;[-57, -28, 1, 30].forEach((knuckleX, index) => {
-      context.fillRect(knuckleX, Math.round(fistY - 27 - (index % 2) * 5), 27, 36 + (index % 2) * 5)
+      context.fillRect(
+        knuckleX,
+        Math.round(fistY - 27 - (index % 2) * 5),
+        27,
+        36 + (index % 2) * 5
+      )
     })
     context.fillStyle = GAME_COLORS.background
     context.fillRect(-48, Math.round(fistY + 17), 96, 9)
@@ -1282,18 +1539,35 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
     context.restore()
   }
 
-  engine.companions.filter((companion) => now < companion.activeUntil).forEach((companion, index) => {
-    drawCompanion(context, companion, now, LASER_CHARGE_MS + index * 550)
-  })
+  engine.companions
+    .filter((companion) => now < companion.activeUntil)
+    .forEach((companion, index) => {
+      drawCompanion(context, companion, now, LASER_CHARGE_MS + index * 550)
+    })
 
   engine.bullets.forEach((bullet) => {
     if (bullet.enemy) {
       context.strokeStyle = GAME_COLORS.enemy
       if (bullet.burstAt) {
-        context.strokeRect(Math.round(bullet.x - 7), Math.round(bullet.y - 7), 14, 14)
-        context.strokeRect(Math.round(bullet.x - 3), Math.round(bullet.y - 3), 6, 6)
+        context.strokeRect(
+          Math.round(bullet.x - 7),
+          Math.round(bullet.y - 7),
+          14,
+          14
+        )
+        context.strokeRect(
+          Math.round(bullet.x - 3),
+          Math.round(bullet.y - 3),
+          6,
+          6
+        )
       } else {
-        context.strokeRect(Math.round(bullet.x - 2), Math.round(bullet.y - 2), 5, 5)
+        context.strokeRect(
+          Math.round(bullet.x - 2),
+          Math.round(bullet.y - 2),
+          5,
+          5
+        )
       }
     } else if (bullet.rocket) {
       const angle = Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2
@@ -1312,24 +1586,45 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
     }
   })
   engine.powerUps.forEach((powerUp) => {
-    const displayY = powerUp.fixed ? powerUp.y : powerUp.y + Math.sin(powerUp.phase) * 4
-    const pulse = 7 + Math.round((Math.sin(now * 0.008 + powerUp.x) + 1))
+    const displayY = powerUp.fixed
+      ? powerUp.y
+      : powerUp.y + Math.sin(powerUp.phase) * 4
+    const pulse = 7 + Math.round(Math.sin(now * 0.008 + powerUp.x) + 1)
     context.strokeStyle = GAME_COLORS.power
-    context.strokeRect(Math.round(powerUp.x - pulse), Math.round(displayY - pulse), pulse * 2, pulse * 2)
+    context.strokeRect(
+      Math.round(powerUp.x - pulse),
+      Math.round(displayY - pulse),
+      pulse * 2,
+      pulse * 2
+    )
     context.globalAlpha = 0.45
-    context.strokeRect(Math.round(powerUp.x - 12), Math.round(displayY - 12), 24, 24)
+    context.strokeRect(
+      Math.round(powerUp.x - 12),
+      Math.round(displayY - 12),
+      24,
+      24
+    )
     context.globalAlpha = 1
     context.fillStyle = GAME_COLORS.power
     context.font = "bold 11px monospace"
     context.textAlign = "center"
-    context.fillText(POWER_LABELS[powerUp.kind], Math.round(powerUp.x), Math.round(displayY + 4))
+    context.fillText(
+      POWER_LABELS[powerUp.kind],
+      Math.round(powerUp.x),
+      Math.round(displayY + 4)
+    )
   })
   engine.survivors.forEach((survivor) => drawSurvivor(context, survivor, now))
   engine.enemies.forEach((enemy) => drawEnemy(context, enemy, now))
   context.fillStyle = GAME_COLORS.cream
   engine.particles.forEach((particle) => {
     context.globalAlpha = Math.max(0, particle.life / particle.maxLife)
-    context.fillRect(Math.round(particle.x), Math.round(particle.y), particle.size, particle.size)
+    context.fillRect(
+      Math.round(particle.x),
+      Math.round(particle.y),
+      particle.size,
+      particle.size
+    )
   })
   context.globalAlpha = 1
   context.save()
@@ -1362,7 +1657,12 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
   context.strokeStyle = GAME_COLORS.cream
   context.strokeRect(12, 25, 108, 8)
   context.fillStyle = GAME_COLORS.cream
-  context.fillRect(14, 27, Math.max(0, Math.round(engine.ship.health * 1.04)), 4)
+  context.fillRect(
+    14,
+    27,
+    Math.max(0, Math.round(engine.ship.health * 1.04)),
+    4
+  )
   context.font = "bold 12px monospace"
   context.textAlign = "left"
   context.fillText("LIFE", 12, 17)
@@ -1370,15 +1670,28 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
   context.fillText(`LEVEL ${NUMBER_FORMATTER.format(engine.level)}`, 382, 17)
   context.font = "bold 10px monospace"
   context.fillText(`SAVED ${NUMBER_FORMATTER.format(engine.rescued)}`, 12, 46)
-  context.fillText(`REVIVES ${NUMBER_FORMATTER.format(engine.revivesRemaining)}`, 94, 46)
+  context.fillText(
+    `REVIVES ${NUMBER_FORMATTER.format(engine.revivesRemaining)}`,
+    94,
+    46
+  )
 
   const boss = engine.enemies.find((enemy) => enemy.kind === "boss")
   if (boss) {
     context.fillText("BOSS", 196, 46)
     context.strokeRect(234, 38, 230, 8)
-    context.fillRect(236, 40, Math.round(226 * (boss.health / boss.maxHealth)), 4)
+    context.fillRect(
+      236,
+      40,
+      Math.round(226 * (boss.health / boss.maxHealth)),
+      4
+    )
   } else {
-    context.fillText(`NEXT BOSS ${NUMBER_FORMATTER.format(engine.nextBossScore)}`, 210, 46)
+    context.fillText(
+      `NEXT BOSS ${NUMBER_FORMATTER.format(engine.nextBossScore)}`,
+      210,
+      46
+    )
   }
 
   if (now < engine.bossIntroUntil) {
@@ -1405,23 +1718,36 @@ function render(context: CanvasRenderingContext2D, engine: Engine, now: number) 
     context.globalAlpha = 1
   }
 
-  const visibleStacks = STACKABLE_POWER_KINDS
-    .map((kind) => ({ kind, count: engine.powerStacks.filter((stack) => stack === kind).length }))
+  const visibleStacks = STACKABLE_POWER_KINDS.map((kind) => ({
+    kind,
+    count: engine.powerStacks.filter((stack) => stack === kind).length,
+  }))
     .filter(({ count }) => count > 0)
     .map(({ kind, count }) => `${POWER_LABELS[kind]}${count}`)
     .join(" ")
   const rippleRemaining = Math.max(0, engine.ripple.readyAt - now)
-  const rippleCharge = rippleRemaining === 0
-    ? 1
-    : Math.max(0, 1 - rippleRemaining / RIPPLE_COOLDOWN_MS)
+  const rippleCharge =
+    rippleRemaining === 0
+      ? 1
+      : Math.max(0, 1 - rippleRemaining / RIPPLE_COOLDOWN_MS)
   context.fillStyle = GAME_COLORS.background
   context.fillRect(0, HEIGHT - 24, WIDTH, 24)
   context.fillStyle = GAME_COLORS.cream
   context.font = "bold 10px monospace"
   context.textAlign = "left"
-  context.fillText(visibleStacks ? `POWER [${visibleStacks}]` : "POWER [--]", 12, HEIGHT - 8)
+  context.fillText(
+    visibleStacks ? `POWER [${visibleStacks}]` : "POWER [--]",
+    12,
+    HEIGHT - 8
+  )
   context.textAlign = "right"
-  context.fillText(rippleRemaining === 0 ? "RIPPLE READY" : `RIPPLE ${Math.ceil(rippleRemaining / 1_000)}s`, WIDTH - 12, HEIGHT - 12)
+  context.fillText(
+    rippleRemaining === 0
+      ? "RIPPLE READY"
+      : `RIPPLE ${Math.ceil(rippleRemaining / 1_000)}s`,
+    WIDTH - 12,
+    HEIGHT - 12
+  )
   context.strokeStyle = GAME_COLORS.cream
   context.strokeRect(WIDTH - 102, HEIGHT - 8, 90, 4)
   context.fillRect(WIDTH - 101, HEIGHT - 7, Math.round(88 * rippleCharge), 2)
@@ -1433,13 +1759,20 @@ export function SpaceShooterGame() {
   const audioRef = useRef<AudioContext | null>(null)
   const [phase, setPhase] = useState<Phase>("ready")
   const [finalScore, setFinalScore] = useState(0)
-  const [specialStatus, setSpecialStatus] = useState({ ready: true, seconds: 0, progress: 1 })
+  const [completedRunNumber, setCompletedRunNumber] = useState(0)
+  const [specialStatus, setSpecialStatus] = useState({
+    ready: true,
+    seconds: 0,
+    progress: 1,
+  })
   const [armReady, setArmReady] = useState(false)
   const [armProgress, setArmProgress] = useState(0)
   const [muted, setMuted] = useState(false)
   const [hapticsEnabled, setHapticsEnabled] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [selectedColor, setSelectedColor] = useState<ColorOption>(COLOR_OPTIONS[0])
+  const [selectedColor, setSelectedColor] = useState<ColorOption>(
+    COLOR_OPTIONS[0]
+  )
   const [shipColor, setShipColor] = useState<ColorOption>(COLOR_OPTIONS[0])
   const [enemyColor, setEnemyColor] = useState<ColorOption>(COLOR_OPTIONS[0])
   const [powerColor, setPowerColor] = useState<ColorOption>(COLOR_OPTIONS[0])
@@ -1451,7 +1784,8 @@ export function SpaceShooterGame() {
 
   const resumeGameAudio = useCallback(() => {
     const context = audioRef.current
-    if (!muted && context && context.state === "suspended") void context.resume()
+    if (!muted && context && context.state === "suspended")
+      void context.resume()
   }, [muted])
 
   const openSettings = useCallback(() => {
@@ -1486,7 +1820,11 @@ export function SpaceShooterGame() {
     setHapticsEnabled((current) => {
       const next = !current
       engineRef.current.hapticsEnabled = next
-      if (!next && typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      if (
+        !next &&
+        typeof navigator !== "undefined" &&
+        typeof navigator.vibrate === "function"
+      ) {
         navigator.vibrate(0)
       }
       return next
@@ -1511,13 +1849,18 @@ export function SpaceShooterGame() {
     burst(engine, engine.ship.x, engine.ship.y, 38, 165)
     playGameSound(audioRef.current, "powerup")
     triggerHaptic([32, 28, 52, 24, 76], engine.hapticsEnabled)
-    setSpecialStatus({ ready: false, seconds: Math.ceil(RIPPLE_COOLDOWN_MS / 1_000), progress: 0 })
+    setSpecialStatus({
+      ready: false,
+      seconds: Math.ceil(RIPPLE_COOLDOWN_MS / 1_000),
+      progress: 0,
+    })
   }, [phase])
 
   const activateArm = useCallback(() => {
     if (phase !== "playing") return
     const engine = engineRef.current
-    if (engine.armCharges <= 0 || engine.gameTime < engine.armAttack.until) return
+    if (engine.armCharges <= 0 || engine.gameTime < engine.armAttack.until)
+      return
     const now = engine.gameTime
     engine.armCharges -= 1
     engine.armAttack.id += 1
@@ -1553,12 +1896,16 @@ export function SpaceShooterGame() {
     setArmReady(false)
     setArmProgress(0)
     setPhase("playing")
+    trackInBackground(recordGameStart("void-patrol"))
     requestAnimationFrame(() => canvasRef.current?.focus())
   }, [hapticsEnabled, muted])
 
   useEffect(() => {
     if (phase !== "playing" || muted || !audioRef.current) return undefined
-    return startBackgroundMusic(audioRef.current, () => engineRef.current.bossActive)
+    return startBackgroundMusic(
+      audioRef.current,
+      () => engineRef.current.bossActive
+    )
   }, [muted, phase])
 
   useEffect(() => {
@@ -1573,9 +1920,12 @@ export function SpaceShooterGame() {
       engine.lastFrameAt = frameNow
       const cinematicScale = engine.gameTime < engine.slowMotionUntil ? 0.24 : 1
       const desiredTimeScale = engine.targetTimeScale * cinematicScale
-      const timeEase = 1 - Math.exp(-rawDelta * (desiredTimeScale > engine.timeScale ? 3.8 : 2.2))
+      const timeEase =
+        1 -
+        Math.exp(-rawDelta * (desiredTimeScale > engine.timeScale ? 3.8 : 2.2))
       engine.timeScale += (desiredTimeScale - engine.timeScale) * timeEase
-      if (engine.targetTimeScale === 0 && engine.timeScale < 0.01) engine.timeScale = 0
+      if (engine.targetTimeScale === 0 && engine.timeScale < 0.01)
+        engine.timeScale = 0
       const delta = rawDelta * engine.timeScale
       engine.gameTime += delta * 1_000
       const now = engine.gameTime
@@ -1595,7 +1945,11 @@ export function SpaceShooterGame() {
         const length = Math.hypot(moveX, moveY)
         desiredVx = (moveX / length) * SHIP_SPEED
         desiredVy = (moveY / length) * SHIP_SPEED
-      } else if (shipControllable && engine.ship.targetX !== null && engine.ship.targetY !== null) {
+      } else if (
+        shipControllable &&
+        engine.ship.targetX !== null &&
+        engine.ship.targetY !== null
+      ) {
         const targetDx = engine.ship.targetX - engine.ship.x
         const targetDy = engine.ship.targetY - engine.ship.y
         const targetDistance = Math.hypot(targetDx, targetDy)
@@ -1622,26 +1976,35 @@ export function SpaceShooterGame() {
       engine.ship.y = Math.max(90, Math.min(HEIGHT - 30, engine.ship.y))
 
       STACKABLE_POWER_KINDS.forEach((kind) => {
-        engine.powerExpiresAt[kind] = engine.powerExpiresAt[kind].filter((expiresAt) => now < expiresAt)
+        engine.powerExpiresAt[kind] = engine.powerExpiresAt[kind].filter(
+          (expiresAt) => now < expiresAt
+        )
       })
       engine.powerStacks = STACKABLE_POWER_KINDS.flatMap((kind) =>
         engine.powerExpiresAt[kind].map(() => kind)
       )
       if (!engine.powerStacks.includes("shield")) engine.meteorShieldHits = 0
-      const activeCompanions = engine.companions.filter((companion) => now < companion.activeUntil)
+      const activeCompanions = engine.companions.filter(
+        (companion) => now < companion.activeUntil
+      )
 
       if (activeCompanions.length > 0) {
         const companionEase = 1 - Math.exp(-delta * 7)
-        const offsets = activeCompanions.length === 1
-          ? [0]
-          : activeCompanions.length === 2
-            ? [-30, 30]
-            : [-38, 0, 38]
+        const offsets =
+          activeCompanions.length === 1
+            ? [0]
+            : activeCompanions.length === 2
+              ? [-30, 30]
+              : [-38, 0, 38]
         activeCompanions.forEach((companion, index) => {
           const chargeTime = LASER_CHARGE_MS + index * 550
-          companion.x += (engine.ship.x + offsets[index] - companion.x) * companionEase
-          companion.y += (engine.ship.y + 13 + (index % 2) * 10 - companion.y) * companionEase
-          if (companion.nextLaserAt === 0) companion.nextLaserAt = now + chargeTime
+          companion.x +=
+            (engine.ship.x + offsets[index] - companion.x) * companionEase
+          companion.y +=
+            (engine.ship.y + 13 + (index % 2) * 10 - companion.y) *
+            companionEase
+          if (companion.nextLaserAt === 0)
+            companion.nextLaserAt = now + chargeTime
           if (now >= companion.nextLaserAt) {
             companion.laserUntil = now + 720
             companion.nextLaserAt = now + chargeTime
@@ -1651,25 +2014,54 @@ export function SpaceShooterGame() {
       }
 
       if (engine.ship.destroyedUntil === 0 && now >= engine.nextShotAt) {
-        const spreadStacks = engine.powerStacks.filter((kind) => kind === "spread").length
-        const rapidStacks = engine.powerStacks.filter((kind) => kind === "rapid").length
-        engine.bullets.push({ x: engine.ship.x, y: engine.ship.y - 21, vx: 0, vy: -470 })
+        const spreadStacks = engine.powerStacks.filter(
+          (kind) => kind === "spread"
+        ).length
+        const rapidStacks = engine.powerStacks.filter(
+          (kind) => kind === "rapid"
+        ).length
+        engine.bullets.push({
+          x: engine.ship.x,
+          y: engine.ship.y - 21,
+          vx: 0,
+          vy: -470,
+        })
         for (let stack = 1; stack <= spreadStacks; stack += 1) {
           const offset = 5 + stack * 4
           const sideVelocity = 75 + stack * 35
           engine.bullets.push(
-            { x: engine.ship.x - offset, y: engine.ship.y - 15, vx: -sideVelocity, vy: -445 },
-            { x: engine.ship.x + offset, y: engine.ship.y - 15, vx: sideVelocity, vy: -445 }
+            {
+              x: engine.ship.x - offset,
+              y: engine.ship.y - 15,
+              vx: -sideVelocity,
+              vy: -445,
+            },
+            {
+              x: engine.ship.x + offset,
+              y: engine.ship.y - 15,
+              vx: sideVelocity,
+              vy: -445,
+            }
           )
         }
         playGameSound(audioRef.current, "shot")
         engine.nextShotAt = now + Math.max(52, 165 - rapidStacks * 28)
       }
 
-      const rocketStacks = engine.powerStacks.filter((kind) => kind === "rocket").length
-      if (engine.ship.destroyedUntil === 0 && rocketStacks > 0 && now >= engine.nextRocketAt && engine.enemies.length > 0) {
-        const target = engine.enemies.find((enemy) => enemy.kind === "boss") ??
-          engine.enemies.reduce((farthest, enemy) => enemy.y < farthest.y ? enemy : farthest)
+      const rocketStacks = engine.powerStacks.filter(
+        (kind) => kind === "rocket"
+      ).length
+      if (
+        engine.ship.destroyedUntil === 0 &&
+        rocketStacks > 0 &&
+        now >= engine.nextRocketAt &&
+        engine.enemies.length > 0
+      ) {
+        const target =
+          engine.enemies.find((enemy) => enemy.kind === "boss") ??
+          engine.enemies.reduce((farthest, enemy) =>
+            enemy.y < farthest.y ? enemy : farthest
+          )
         engine.bullets.push({
           x: engine.ship.x,
           y: engine.ship.y - 24,
@@ -1680,10 +2072,15 @@ export function SpaceShooterGame() {
         })
         burst(engine, engine.ship.x, engine.ship.y - 20, 7, 45)
         playGameSound(audioRef.current, "shot")
-        engine.nextRocketAt = now + Math.max(900, 2_800 - (rocketStacks - 1) * 380)
+        engine.nextRocketAt =
+          now + Math.max(900, 2_800 - (rocketStacks - 1) * 380)
       }
 
-      if (!engine.bossActive && now >= engine.nextSpawnAt && engine.enemies.length < 18) {
+      if (
+        !engine.bossActive &&
+        now >= engine.nextSpawnAt &&
+        engine.enemies.length < 18
+      ) {
         spawnEnemy(engine, now)
         engine.nextSpawnAt = now + Math.max(300, 940 - engine.level * 55)
       }
@@ -1699,7 +2096,12 @@ export function SpaceShooterGame() {
       }
 
       engine.bullets.forEach((bullet) => {
-        if (bullet.enemy && bullet.burstAt && now >= bullet.burstAt && !bullet.expired) {
+        if (
+          bullet.enemy &&
+          bullet.burstAt &&
+          now >= bullet.burstAt &&
+          !bullet.expired
+        ) {
           bullet.expired = true
           const burstCount = bullet.burstCount ?? 10
           const scatterSpeed = Math.min(185, 105 + engine.level * 7)
@@ -1718,11 +2120,15 @@ export function SpaceShooterGame() {
           engine.shakeStrength = 5
         }
         if (bullet.rocket) {
-          let target = engine.enemies.find((enemy) => enemy.id === bullet.targetId)
+          let target = engine.enemies.find(
+            (enemy) => enemy.id === bullet.targetId
+          )
           if (!target && engine.enemies.length > 0) {
             target = engine.enemies.reduce((closest, enemy) =>
               Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y) <
-              Math.hypot(closest.x - bullet.x, closest.y - bullet.y) ? enemy : closest
+              Math.hypot(closest.x - bullet.x, closest.y - bullet.y)
+                ? enemy
+                : closest
             )
             bullet.targetId = target.id
           }
@@ -1755,12 +2161,24 @@ export function SpaceShooterGame() {
         particle.vy += 90 * delta
         particle.life -= delta
       })
-      if (engine.level >= 3 && engine.meteors.length === 0 && now >= engine.nextMeteorAt) {
-        const meteorCount = engine.level >= 10 ? 2 + Math.floor(Math.random() * 3) : 1
-        for (let index = 0; index < meteorCount; index += 1) startMeteorWarning(engine, now)
-        engine.nextMeteorAt = now + Math.max(8_500, 16_000 - engine.level * 420) + Math.random() * 4_000
+      if (
+        engine.level >= 3 &&
+        engine.meteors.length === 0 &&
+        now >= engine.nextMeteorAt
+      ) {
+        const meteorCount =
+          engine.level >= 10 ? 2 + Math.floor(Math.random() * 3) : 1
+        for (let index = 0; index < meteorCount; index += 1)
+          startMeteorWarning(engine, now)
+        engine.nextMeteorAt =
+          now +
+          Math.max(8_500, 16_000 - engine.level * 420) +
+          Math.random() * 4_000
         engine.pickupNotice = {
-          label: meteorCount > 1 ? `!! ${meteorCount} METEOR TRAJECTORIES !!` : "!! METEOR TRAJECTORY DETECTED !!",
+          label:
+            meteorCount > 1
+              ? `!! ${meteorCount} METEOR TRAJECTORIES !!`
+              : "!! METEOR TRAJECTORY DETECTED !!",
           until: now + 1_650,
         }
         playGameSound(audioRef.current, "meteorAlert")
@@ -1771,9 +2189,15 @@ export function SpaceShooterGame() {
           if (meteor.movingWarning) {
             const travel = Math.sin(now * 0.0032 + meteor.warningPhase) * 118
             if (meteor.edge === "top" || meteor.edge === "bottom") {
-              meteor.x = Math.max(28, Math.min(WIDTH - 28, meteor.baseX + travel))
+              meteor.x = Math.max(
+                28,
+                Math.min(WIDTH - 28, meteor.baseX + travel)
+              )
             } else {
-              meteor.y = Math.max(92, Math.min(HEIGHT - 62, meteor.baseY + travel))
+              meteor.y = Math.max(
+                92,
+                Math.min(HEIGHT - 62, meteor.baseY + travel)
+              )
             }
             aimMeteorAt(meteor, engine.ship.x, engine.ship.y)
           }
@@ -1794,7 +2218,12 @@ export function SpaceShooterGame() {
       }
       engine.meteors = engine.meteors.filter((meteor) => {
         if (meteor.state !== "active") return true
-        return meteor.x >= -110 && meteor.x <= WIDTH + 110 && meteor.y >= -110 && meteor.y <= HEIGHT + 110
+        return (
+          meteor.x >= -110 &&
+          meteor.x <= WIDTH + 110 &&
+          meteor.y >= -110 &&
+          meteor.y <= HEIGHT + 110
+        )
       })
 
       engine.enemies.forEach((enemy) => {
@@ -1802,7 +2231,8 @@ export function SpaceShooterGame() {
         if (enemy.kind === "boss") {
           if (enemy.variant === 4) {
             if (enemy.chargeState === "charging") {
-              enemy.x += (enemy.chargeTargetX - enemy.x) * (1 - Math.exp(-delta * 3.5))
+              enemy.x +=
+                (enemy.chargeTargetX - enemy.x) * (1 - Math.exp(-delta * 3.5))
               enemy.y += 470 * delta
               if (enemy.y > HEIGHT + 25) {
                 enemy.chargeState = "returning"
@@ -1816,14 +2246,16 @@ export function SpaceShooterGame() {
               if (enemy.y >= 118) {
                 enemy.y = 118
                 enemy.chargeState = "idle"
-                enemy.nextShotAt = now + Math.max(2_300, 3_900 - engine.level * 30)
+                enemy.nextShotAt =
+                  now + Math.max(2_300, 3_900 - engine.level * 30)
               }
               return
             }
 
             enemy.y = Math.min(118, enemy.y + enemy.speed * delta)
             if (enemy.chargeState === "warning") {
-              enemy.x += (enemy.chargeTargetX - enemy.x) * (1 - Math.exp(-delta * 2.4))
+              enemy.x +=
+                (enemy.chargeTargetX - enemy.x) * (1 - Math.exp(-delta * 2.4))
               if (now >= enemy.chargeAt) {
                 enemy.chargeState = "charging"
                 engine.shakeUntil = now + 240
@@ -1842,14 +2274,18 @@ export function SpaceShooterGame() {
                 engine.bullets.push({
                   x: enemy.x + (index === 0 ? -24 : 24),
                   y: enemy.y + 28,
-                  vx: (engine.ship.x - enemy.x) * (index === 0 ? 0.035 : -0.025),
+                  vx:
+                    (engine.ship.x - enemy.x) * (index === 0 ? 0.035 : -0.025),
                   vy: 68 + index * 12,
                   enemy: true,
                   burstAt: now + 1_050 + index * 420,
                   burstCount: 10 + index * 2,
                 })
               }
-              engine.pickupNotice = { label: "!! BOSS CHARGING ATTACK !!", until: now + 1_500 }
+              engine.pickupNotice = {
+                label: "!! BOSS CHARGING ATTACK !!",
+                until: now + 1_500,
+              }
               playGameSound(audioRef.current, "meteorAlert")
               triggerHaptic([24, 55, 24], engine.hapticsEnabled)
             }
@@ -1859,7 +2295,10 @@ export function SpaceShooterGame() {
           enemy.x = WIDTH / 2 + Math.sin(enemy.phase * 0.9) * 142
           if (now >= engine.bossIntroUntil && now >= enemy.nextShotAt) {
             const enraged = enemy.health < enemy.maxHealth * 0.5
-            const bossBulletSpeed = Math.min(220, 118 + engine.level * 8 + (enraged ? 24 : 0))
+            const bossBulletSpeed = Math.min(
+              220,
+              118 + engine.level * 8 + (enraged ? 24 : 0)
+            )
             if (enemy.variant === 0) {
               const spread = enraged ? 3 : 2
               for (let angle = -spread; angle <= spread; angle += 1) {
@@ -1873,7 +2312,8 @@ export function SpaceShooterGame() {
               }
             } else if (enemy.variant === 1) {
               const burstTravelMs = 480 + Math.random() * 1_420
-              const burstTravelSpeed = bossBulletSpeed * (0.38 + Math.random() * 0.5)
+              const burstTravelSpeed =
+                bossBulletSpeed * (0.38 + Math.random() * 0.5)
               engine.bullets.push({
                 x: enemy.x,
                 y: enemy.y + 30,
@@ -1911,13 +2351,19 @@ export function SpaceShooterGame() {
               engine.bullets.push({
                 x: enemy.x,
                 y: enemy.y + 30,
-                vx: Math.max(-80, Math.min(80, (engine.ship.x - enemy.x) * 0.22)),
+                vx: Math.max(
+                  -80,
+                  Math.min(80, (engine.ship.x - enemy.x) * 0.22)
+                ),
                 vy: bossBulletSpeed,
                 enemy: true,
               })
             }
-            const baseDelay = enemy.variant >= 2 ? 2_250 : enemy.variant === 1 ? 1_450 : 1_080
-            enemy.nextShotAt = now + Math.max(650, baseDelay - engine.level * 24 - (enraged ? 180 : 0))
+            const baseDelay =
+              enemy.variant >= 2 ? 2_250 : enemy.variant === 1 ? 1_450 : 1_080
+            enemy.nextShotAt =
+              now +
+              Math.max(650, baseDelay - engine.level * 24 - (enraged ? 180 : 0))
           }
         } else {
           if (enemy.kind === "shooter") {
@@ -1931,22 +2377,52 @@ export function SpaceShooterGame() {
           } else {
             enemy.y += enemy.speed * (enemy.kind === "diver" ? 1.45 : 1) * delta
           }
-          if (enemy.kind === "zigzag") enemy.x += Math.sin(enemy.phase * 5) * 78 * delta
-          if (enemy.kind === "cluster") enemy.x += Math.sin(enemy.phase * 4.4) * 96 * delta
+          if (enemy.kind === "zigzag")
+            enemy.x += Math.sin(enemy.phase * 5) * 78 * delta
+          if (enemy.kind === "cluster")
+            enemy.x += Math.sin(enemy.phase * 4.4) * 96 * delta
           if (enemy.kind === "diver") {
-            enemy.x += Math.max(-90, Math.min(90, engine.ship.x - enemy.x)) * delta * 0.75
+            enemy.x +=
+              Math.max(-90, Math.min(90, engine.ship.x - enemy.x)) *
+              delta *
+              0.75
           }
-          if ((enemy.kind === "tank" || enemy.kind === "shooter" || enemy.kind === "sentry") && now >= enemy.nextShotAt) {
+          if (
+            (enemy.kind === "tank" ||
+              enemy.kind === "shooter" ||
+              enemy.kind === "sentry") &&
+            now >= enemy.nextShotAt
+          ) {
             const aimed = enemy.kind === "shooter" || enemy.kind === "sentry"
             const aimX = aimed
-              ? Math.max(-125, Math.min(125, (engine.ship.x - enemy.x) * (enemy.kind === "sentry" ? 0.5 : 0.35)))
+              ? Math.max(
+                  -125,
+                  Math.min(
+                    125,
+                    (engine.ship.x - enemy.x) *
+                      (enemy.kind === "sentry" ? 0.5 : 0.35)
+                  )
+                )
               : 0
-            engine.bullets.push({ x: enemy.x, y: enemy.y + 18, vx: 0, vy: 155, enemy: true })
+            engine.bullets.push({
+              x: enemy.x,
+              y: enemy.y + 18,
+              vx: 0,
+              vy: 155,
+              enemy: true,
+            })
             if (aimed) {
               engine.bullets[engine.bullets.length - 1].vx = aimX
-              engine.bullets[engine.bullets.length - 1].vy = enemy.kind === "sentry" ? 195 : 175
+              engine.bullets[engine.bullets.length - 1].vy =
+                enemy.kind === "sentry" ? 195 : 175
             }
-            enemy.nextShotAt = now + (enemy.kind === "sentry" ? 1_050 : enemy.kind === "shooter" ? 1_350 : 1_900)
+            enemy.nextShotAt =
+              now +
+              (enemy.kind === "sentry"
+                ? 1_050
+                : enemy.kind === "shooter"
+                  ? 1_350
+                  : 1_900)
           }
         }
       })
@@ -1969,7 +2445,13 @@ export function SpaceShooterGame() {
         }
         engine.score += scoreByKind[enemy.kind]
         if (!boss) {
-          burst(engine, enemy.x, enemy.y, enemy.kind === "cluster" ? 8 : 18, 115)
+          burst(
+            engine,
+            enemy.x,
+            enemy.y,
+            enemy.kind === "cluster" ? 8 : 18,
+            115
+          )
         }
         if (now - engine.lastDestroyedSoundAt > 45) {
           playGameSound(audioRef.current, "enemyDestroyed")
@@ -2004,17 +2486,27 @@ export function SpaceShooterGame() {
         engine.levelKills += 1
         const dropChance = enemy.kind === "cluster" ? 0.06 : 0.28
         if (Math.random() < dropChance) {
-          const kinds: PowerUpKind[] = ["rapid", "spread", "shield", "health", "laser", "rocket"]
+          const kinds: PowerUpKind[] = [
+            "rapid",
+            "spread",
+            "shield",
+            "health",
+            "laser",
+            "rocket",
+          ]
           const availableKinds = kinds.filter((kind) =>
             kind === "health"
               ? engine.ship.health < 100
-              : engine.powerStacks.filter((stack) => stack === kind).length < POWER_LIMITS[kind]
+              : engine.powerStacks.filter((stack) => stack === kind).length <
+                POWER_LIMITS[kind]
           )
           if (availableKinds.length > 0) {
             engine.powerUps.push({
               x: enemy.x,
               y: enemy.y,
-              kind: availableKinds[Math.floor(Math.random() * availableKinds.length)],
+              kind: availableKinds[
+                Math.floor(Math.random() * availableKinds.length)
+              ],
               speed: 18,
               phase: Math.random() * Math.PI * 2,
               expiresAt: now + POWER_UP_LIFETIME_MS,
@@ -2029,13 +2521,18 @@ export function SpaceShooterGame() {
       }
 
       if (now < engine.ripple.until) {
-        const progress = Math.max(0, Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS))
+        const progress = Math.max(
+          0,
+          Math.min(1, (now - engine.ripple.startedAt) / RIPPLE_DURATION_MS)
+        )
         const radius = (1 - Math.pow(1 - progress, 3)) * 520
         engine.meteors = engine.meteors.filter((meteor) => {
           if (
             meteor.state !== "active" ||
-            Math.hypot(meteor.x - engine.ripple.x, meteor.y - engine.ripple.y) > radius + meteor.size / 2
-          ) return true
+            Math.hypot(meteor.x - engine.ripple.x, meteor.y - engine.ripple.y) >
+              radius + meteor.size / 2
+          )
+            return true
           burst(engine, meteor.x, meteor.y, 64, 340, 4.5)
           engine.shakeUntil = Math.max(engine.shakeUntil, now + 360)
           engine.shakeStrength = Math.max(engine.shakeStrength, 13)
@@ -2043,8 +2540,16 @@ export function SpaceShooterGame() {
           return false
         })
         engine.enemies.forEach((enemy) => {
-          if (destroyedEnemies.has(enemy) || enemy.lastRippleId === engine.ripple.id) return
-          if (Math.hypot(enemy.x - engine.ripple.x, enemy.y - engine.ripple.y) > radius + enemy.width / 2) return
+          if (
+            destroyedEnemies.has(enemy) ||
+            enemy.lastRippleId === engine.ripple.id
+          )
+            return
+          if (
+            Math.hypot(enemy.x - engine.ripple.x, enemy.y - engine.ripple.y) >
+            radius + enemy.width / 2
+          )
+            return
           enemy.lastRippleId = engine.ripple.id
           enemy.health -= enemy.kind === "boss" ? 92 : 74
           enemy.hitUntil = now + 160
@@ -2054,7 +2559,10 @@ export function SpaceShooterGame() {
       }
 
       if (now < engine.armAttack.until) {
-        const progress = Math.max(0, Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS))
+        const progress = Math.max(
+          0,
+          Math.min(1, (now - engine.armAttack.startedAt) / ARM_DURATION_MS)
+        )
         const fistY = HEIGHT + 40 - getArmReach(progress)
         engine.enemies.forEach((enemy) => {
           if (
@@ -2062,7 +2570,8 @@ export function SpaceShooterGame() {
             enemy.lastArmId === engine.armAttack.id ||
             Math.abs(enemy.x - engine.armAttack.x) > enemy.width / 2 + 68 ||
             enemy.y < fistY - 58
-          ) return
+          )
+            return
           enemy.lastArmId = engine.armAttack.id
           enemy.health -= enemy.kind === "boss" ? 145 : 999
           enemy.hitUntil = now + 220
@@ -2073,57 +2582,63 @@ export function SpaceShooterGame() {
           if (
             Math.abs(powerUp.x - engine.armAttack.x) > 76 ||
             powerUp.y < fistY - 58
-          ) return
+          )
+            return
           burst(engine, powerUp.x, powerUp.y, 8, 70)
           powerUp.x = engine.ship.x
           powerUp.y = engine.ship.y
         })
       }
 
-      engine.bullets.filter((bullet) => !bullet.enemy).forEach((bullet) => {
-        const enemy = engine.enemies.find((target) =>
-          !destroyedEnemies.has(target) && overlaps(
+      engine.bullets
+        .filter((bullet) => !bullet.enemy)
+        .forEach((bullet) => {
+          const enemy = engine.enemies.find(
+            (target) =>
+              !destroyedEnemies.has(target) &&
+              overlaps(
+                bullet.x,
+                bullet.y,
+                4,
+                9,
+                target.x,
+                target.y,
+                target.kind === "boss" ? target.width : target.width * 0.7,
+                target.kind === "boss" ? target.height : target.height * 0.7
+              )
+          )
+          if (!enemy) return
+          consumedBullets.add(bullet)
+          enemy.health -= bullet.rocket ? 8 : 1
+          enemy.hitUntil = now + 75
+          engine.shakeUntil = now + 72
+          engine.shakeStrength = enemy.kind === "boss" ? 7 : 4
+          burst(
+            engine,
             bullet.x,
             bullet.y,
-            4,
-            9,
-            target.x,
-            target.y,
-            target.kind === "boss" ? target.width : target.width * 0.7,
-            target.kind === "boss" ? target.height : target.height * 0.7
+            bullet.rocket ? 20 : enemy.kind === "boss" ? 9 : 6,
+            bullet.rocket ? 125 : 52
           )
-        )
-        if (!enemy) return
-        consumedBullets.add(bullet)
-        enemy.health -= bullet.rocket ? 8 : 1
-        enemy.hitUntil = now + 75
-        engine.shakeUntil = now + 72
-        engine.shakeStrength = enemy.kind === "boss" ? 7 : 4
-        burst(
-          engine,
-          bullet.x,
-          bullet.y,
-          bullet.rocket ? 20 : enemy.kind === "boss" ? 9 : 6,
-          bullet.rocket ? 125 : 52
-        )
-        if (now - engine.lastCollisionSoundAt > 34) {
-          playGameSound(audioRef.current, "collision")
-          engine.lastCollisionSoundAt = now
-        }
-        if (bullet.rocket) {
-          engine.enemies.forEach((nearby) => {
-            if (nearby === enemy || destroyedEnemies.has(nearby)) return
-            if (Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) > 46) return
-            nearby.health -= 3
-            nearby.hitUntil = now + 100
-            burst(engine, nearby.x, nearby.y, 6, 70)
-            if (nearby.health <= 0) destroyEnemy(nearby)
-          })
-        }
-        if (enemy.health > 0) return
+          if (now - engine.lastCollisionSoundAt > 34) {
+            playGameSound(audioRef.current, "collision")
+            engine.lastCollisionSoundAt = now
+          }
+          if (bullet.rocket) {
+            engine.enemies.forEach((nearby) => {
+              if (nearby === enemy || destroyedEnemies.has(nearby)) return
+              if (Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) > 46)
+                return
+              nearby.health -= 3
+              nearby.hitUntil = now + 100
+              burst(engine, nearby.x, nearby.y, 6, 70)
+              if (nearby.health <= 0) destroyEnemy(nearby)
+            })
+          }
+          if (enemy.health > 0) return
 
-        destroyEnemy(enemy)
-      })
+          destroyEnemy(enemy)
+        })
 
       engine.companions.forEach((companion) => {
         if (now >= companion.activeUntil || now >= companion.laserUntil) return
@@ -2132,7 +2647,8 @@ export function SpaceShooterGame() {
             destroyedEnemies.has(enemy) ||
             enemy.y > companion.y ||
             Math.abs(enemy.x - companion.x) > enemy.width / 2 + 5
-          ) return
+          )
+            return
           enemy.health -= 17 * delta
           if (now >= enemy.hitUntil) {
             enemy.hitUntil = now + 85
@@ -2142,23 +2658,43 @@ export function SpaceShooterGame() {
         })
       })
 
-      engine.bullets.filter((bullet) => bullet.enemy && !bullet.expired).forEach((bullet) => {
-        if (now < engine.ship.invulnerableUntil) return
-        const shieldActive = engine.powerStacks.includes("shield")
-        const hitWidth = shieldActive ? 48 : 24
-        const hitHeight = shieldActive ? 54 : 30
-        if (!overlaps(bullet.x, bullet.y, 7, 7, engine.ship.x, engine.ship.y, hitWidth, hitHeight)) return
-        consumedBullets.add(bullet)
-        if (!shieldActive) {
-          engine.ship.health = Math.max(0, engine.ship.health - 12)
-        }
-        engine.ship.invulnerableUntil = now + (shieldActive ? 160 : 650)
-        engine.shakeUntil = now + (shieldActive ? 90 : 240)
-        engine.shakeStrength = shieldActive ? 5 : 12
-        burst(engine, bullet.x, bullet.y, shieldActive ? 8 : 14, shieldActive ? 70 : 130)
-        playGameSound(audioRef.current, "playerHit")
-        triggerHaptic(shieldActive ? 24 : 68, engine.hapticsEnabled)
-      })
+      engine.bullets
+        .filter((bullet) => bullet.enemy && !bullet.expired)
+        .forEach((bullet) => {
+          if (now < engine.ship.invulnerableUntil) return
+          const shieldActive = engine.powerStacks.includes("shield")
+          const hitWidth = shieldActive ? 48 : 24
+          const hitHeight = shieldActive ? 54 : 30
+          if (
+            !overlaps(
+              bullet.x,
+              bullet.y,
+              7,
+              7,
+              engine.ship.x,
+              engine.ship.y,
+              hitWidth,
+              hitHeight
+            )
+          )
+            return
+          consumedBullets.add(bullet)
+          if (!shieldActive) {
+            engine.ship.health = Math.max(0, engine.ship.health - 12)
+          }
+          engine.ship.invulnerableUntil = now + (shieldActive ? 160 : 650)
+          engine.shakeUntil = now + (shieldActive ? 90 : 240)
+          engine.shakeStrength = shieldActive ? 5 : 12
+          burst(
+            engine,
+            bullet.x,
+            bullet.y,
+            shieldActive ? 8 : 14,
+            shieldActive ? 70 : 130
+          )
+          playGameSound(audioRef.current, "playerHit")
+          triggerHaptic(shieldActive ? 24 : 68, engine.hapticsEnabled)
+        })
 
       const collidedMeteors = new Set<Meteor>()
       engine.meteors.forEach((meteor) => {
@@ -2175,17 +2711,23 @@ export function SpaceShooterGame() {
             engine.powerStacks.includes("shield") ? 48 : 24,
             engine.powerStacks.includes("shield") ? 54 : 30
           )
-        ) return
+        )
+          return
         const shieldActive = engine.powerStacks.includes("shield")
         let shieldShattered = false
         if (shieldActive) {
           engine.meteorShieldHits += 1
           if (engine.meteorShieldHits >= 3) {
             engine.powerExpiresAt.shield = []
-            engine.powerStacks = engine.powerStacks.filter((kind) => kind !== "shield")
+            engine.powerStacks = engine.powerStacks.filter(
+              (kind) => kind !== "shield"
+            )
             engine.meteorShieldHits = 0
             shieldShattered = true
-            engine.pickupNotice = { label: "SHIELD SHATTERED BY METEORS", until: now + 1_800 }
+            engine.pickupNotice = {
+              label: "SHIELD SHATTERED BY METEORS",
+              until: now + 1_800,
+            }
             burst(engine, engine.ship.x, engine.ship.y, 36, 185)
           } else {
             engine.pickupNotice = {
@@ -2202,41 +2744,57 @@ export function SpaceShooterGame() {
         burst(engine, meteor.x, meteor.y, shieldActive ? 24 : 42, 210)
         playGameSound(audioRef.current, "playerHit")
         triggerHaptic(
-          shieldShattered ? [85, 30, 110] : shieldActive ? [38, 24, 38] : [125, 35, 75],
+          shieldShattered
+            ? [85, 30, 110]
+            : shieldActive
+              ? [38, 24, 38]
+              : [125, 35, 75],
           engine.hapticsEnabled
         )
         collidedMeteors.add(meteor)
       })
-      engine.meteors = engine.meteors.filter((meteor) => !collidedMeteors.has(meteor))
+      engine.meteors = engine.meteors.filter(
+        (meteor) => !collidedMeteors.has(meteor)
+      )
 
       engine.enemies.forEach((enemy) => {
         if (destroyedEnemies.has(enemy)) return
         if (enemy.y > HEIGHT + 45) {
           destroyedEnemies.add(enemy)
-          if (enemy.kind !== "boss") engine.ship.health = Math.max(0, engine.ship.health - 8)
+          if (enemy.kind !== "boss")
+            engine.ship.health = Math.max(0, engine.ship.health - 8)
           return
         }
         if (now < engine.ship.invulnerableUntil) return
-        const shieldStacks = engine.powerStacks.filter((kind) => kind === "shield").length
+        const shieldStacks = engine.powerStacks.filter(
+          (kind) => kind === "shield"
+        ).length
         const shieldActive = shieldStacks > 0
-        if (!overlaps(
-          enemy.x,
-          enemy.y,
-          enemy.kind === "boss" ? enemy.width : enemy.width * 0.7,
-          enemy.kind === "boss" ? enemy.height : enemy.height * 0.7,
-          engine.ship.x,
-          engine.ship.y,
-          shieldActive ? 48 : 24,
-          shieldActive ? 54 : 30
-        )) return
+        if (
+          !overlaps(
+            enemy.x,
+            enemy.y,
+            enemy.kind === "boss" ? enemy.width : enemy.width * 0.7,
+            enemy.kind === "boss" ? enemy.height : enemy.height * 0.7,
+            engine.ship.x,
+            engine.ship.y,
+            shieldActive ? 48 : 24,
+            shieldActive ? 54 : 30
+          )
+        )
+          return
 
         if (shieldActive) {
-          enemy.health -= enemy.kind === "boss" ? 12 * shieldStacks : enemy.health
+          enemy.health -=
+            enemy.kind === "boss" ? 12 * shieldStacks : enemy.health
           burst(engine, enemy.x, enemy.y, enemy.kind === "boss" ? 16 : 12, 120)
           if (enemy.health <= 0) destroyEnemy(enemy)
         } else {
           destroyedEnemies.add(enemy)
-          engine.ship.health = Math.max(0, engine.ship.health - (enemy.kind === "boss" ? 35 : 18))
+          engine.ship.health = Math.max(
+            0,
+            engine.ship.health - (enemy.kind === "boss" ? 35 : 18)
+          )
         }
         engine.ship.invulnerableUntil = now + (shieldActive ? 240 : 850)
         engine.shakeUntil = now + (shieldActive ? 130 : 320)
@@ -2252,33 +2810,56 @@ export function SpaceShooterGame() {
       engine.powerUps = engine.powerUps.filter((powerUp) => {
         if (
           engine.ship.destroyedUntil === 0 &&
-          overlaps(powerUp.x, powerUp.y, 16, 16, engine.ship.x, engine.ship.y, 30, 36)
+          overlaps(
+            powerUp.x,
+            powerUp.y,
+            16,
+            16,
+            engine.ship.x,
+            engine.ship.y,
+            30,
+            36
+          )
         ) {
           if (powerUp.kind === "arm") {
             engine.armCharges = 1
             setArmReady(true)
-            engine.pickupNotice = { label: "TITAN ARM READY · PRESS R", until: now + 2_000 }
+            engine.pickupNotice = {
+              label: "TITAN ARM READY · PRESS R",
+              until: now + 2_000,
+            }
           } else if (powerUp.kind === "health") {
             engine.ship.health = Math.min(100, engine.ship.health + 24)
-            engine.pickupNotice = { label: "LIFE CORE RESTORED", until: now + 1_650 }
+            engine.pickupNotice = {
+              label: "LIFE CORE RESTORED",
+              until: now + 1_650,
+            }
           } else {
-            const currentStacks = engine.powerStacks.filter((kind) => kind === powerUp.kind).length
+            const currentStacks = engine.powerStacks.filter(
+              (kind) => kind === powerUp.kind
+            ).length
             if (currentStacks < POWER_LIMITS[powerUp.kind]) {
               const shipLong = SHIP_LONG_POWER_KINDS.includes(powerUp.kind)
-              const permanentStacks = engine.powerExpiresAt[powerUp.kind].filter(
-                (expiresAt) => !Number.isFinite(expiresAt)
-              ).length
-              const bossPermanent = BOSS_PERMANENT_POWER_KINDS.includes(powerUp.kind) &&
+              const permanentStacks = engine.powerExpiresAt[
+                powerUp.kind
+              ].filter((expiresAt) => !Number.isFinite(expiresAt)).length
+              const bossPermanent =
+                BOSS_PERMANENT_POWER_KINDS.includes(powerUp.kind) &&
                 permanentStacks < engine.permanentStackLimit
               const unexpiring = shipLong || bossPermanent
-              const effectUntil = unexpiring ? Number.POSITIVE_INFINITY : now + POWER_EFFECT_MS
+              const effectUntil = unexpiring
+                ? Number.POSITIVE_INFINITY
+                : now + POWER_EFFECT_MS
               engine.powerStacks.push(powerUp.kind)
               engine.powerExpiresAt[powerUp.kind].push(effectUntil)
               if (powerUp.kind === "laser") {
-                const companion = engine.companions.find((entry) => now >= entry.activeUntil)
+                const companion = engine.companions.find(
+                  (entry) => now >= entry.activeUntil
+                )
                 if (companion) {
                   companion.activeUntil = effectUntil
-                  companion.nextLaserAt = now + LASER_CHARGE_MS + currentStacks * 550
+                  companion.nextLaserAt =
+                    now + LASER_CHARGE_MS + currentStacks * 550
                   companion.laserUntil = 0
                 }
               }
@@ -2288,7 +2869,10 @@ export function SpaceShooterGame() {
               }
             } else {
               engine.score += 150
-              engine.pickupNotice = { label: `${POWER_NAMES[powerUp.kind]} MAX`, until: now + 1_250 }
+              engine.pickupNotice = {
+                label: `${POWER_NAMES[powerUp.kind]} MAX`,
+                until: now + 1_250,
+              }
             }
           }
           burst(engine, powerUp.x, powerUp.y, 16, 125)
@@ -2300,13 +2884,25 @@ export function SpaceShooterGame() {
       engine.powerUps = engine.powerUps.filter((powerUp) => {
         if (powerUp.kind === "arm") return true
         if (powerUp.kind === "health") return engine.ship.health < 100
-        return engine.powerStacks.filter((kind) => kind === powerUp.kind).length < POWER_LIMITS[powerUp.kind]
+        return (
+          engine.powerStacks.filter((kind) => kind === powerUp.kind).length <
+          POWER_LIMITS[powerUp.kind]
+        )
       })
 
       engine.survivors = engine.survivors.filter((survivor) => {
         if (
           engine.ship.destroyedUntil === 0 &&
-          overlaps(survivor.x, survivor.y, 18, 30, engine.ship.x, engine.ship.y, 36, 42)
+          overlaps(
+            survivor.x,
+            survivor.y,
+            18,
+            30,
+            engine.ship.x,
+            engine.ship.y,
+            36,
+            42
+          )
         ) {
           engine.rescued += 1
           engine.score += 500
@@ -2314,9 +2910,15 @@ export function SpaceShooterGame() {
           if (earnedTitanArm) {
             engine.armCharges = 1
             setArmReady(true)
-            engine.pickupNotice = { label: "5 RESCUED · TITAN ARM READY", until: now + 2_000 }
+            engine.pickupNotice = {
+              label: "5 RESCUED · TITAN ARM READY",
+              until: now + 2_000,
+            }
           } else {
-            engine.pickupNotice = { label: "SURVIVOR RESCUED", until: now + 1_650 }
+            engine.pickupNotice = {
+              label: "SURVIVOR RESCUED",
+              until: now + 1_650,
+            }
           }
           burst(engine, survivor.x, survivor.y, 22, 105)
           playGameSound(audioRef.current, "powerup")
@@ -2324,12 +2926,24 @@ export function SpaceShooterGame() {
         }
         return survivor.y < HEIGHT + 42
       })
-      engine.enemies = engine.enemies.filter((enemy) => !destroyedEnemies.has(enemy))
-      engine.bullets = engine.bullets.filter((bullet) =>
-        !bullet.expired && !consumedBullets.has(bullet) && bullet.y > -30 && bullet.y < HEIGHT + 30 && bullet.x > -30 && bullet.x < WIDTH + 30
+      engine.enemies = engine.enemies.filter(
+        (enemy) => !destroyedEnemies.has(enemy)
       )
-      engine.particles = engine.particles.filter((particle) => particle.life > 0)
-      engine.bossDestructions = engine.bossDestructions.filter((destruction) => now < destruction.until)
+      engine.bullets = engine.bullets.filter(
+        (bullet) =>
+          !bullet.expired &&
+          !consumedBullets.has(bullet) &&
+          bullet.y > -30 &&
+          bullet.y < HEIGHT + 30 &&
+          bullet.x > -30 &&
+          bullet.x < WIDTH + 30
+      )
+      engine.particles = engine.particles.filter(
+        (particle) => particle.life > 0
+      )
+      engine.bossDestructions = engine.bossDestructions.filter(
+        (destruction) => now < destruction.until
+      )
 
       if (!engine.bossActive && engine.score >= engine.nextBossScore) {
         engine.bossActive = true
@@ -2346,7 +2960,10 @@ export function SpaceShooterGame() {
         setSpecialStatus({
           ready: remaining === 0,
           seconds: Math.ceil(remaining / 1_000),
-          progress: remaining === 0 ? 1 : Math.max(0, 1 - remaining / RIPPLE_COOLDOWN_MS),
+          progress:
+            remaining === 0
+              ? 1
+              : Math.max(0, 1 - remaining / RIPPLE_COOLDOWN_MS),
         })
         setArmProgress(engine.rescued % 5)
         engine.lastUiUpdateAt = now
@@ -2385,7 +3002,11 @@ export function SpaceShooterGame() {
             lostPowerUps.forEach((kind, index) => {
               let x = 38 + Math.random() * (WIDTH - 76)
               let y = 255 + Math.random() * (HEIGHT - 365)
-              for (let attempt = 0; attempt < 8 && boss && Math.hypot(x - boss.x, y - boss.y) < 145; attempt += 1) {
+              for (
+                let attempt = 0;
+                attempt < 8 && boss && Math.hypot(x - boss.x, y - boss.y) < 145;
+                attempt += 1
+              ) {
                 x = 38 + Math.random() * (WIDTH - 76)
                 y = 255 + Math.random() * (HEIGHT - 365)
               }
@@ -2401,9 +3022,10 @@ export function SpaceShooterGame() {
             })
           }
           engine.pickupNotice = {
-            label: engine.bossActive && lostPowerUps.length > 0
-              ? "SHIP DESTROYED · UPGRADES SCATTERED"
-              : "SHIP DESTROYED · RECONSTRUCTING",
+            label:
+              engine.bossActive && lostPowerUps.length > 0
+                ? "SHIP DESTROYED · UPGRADES SCATTERED"
+                : "SHIP DESTROYED · RECONSTRUCTING",
             until: now + 1_300,
           }
           setArmReady(false)
@@ -2440,7 +3062,9 @@ export function SpaceShooterGame() {
         } else {
           render(context, engine, now)
           setFinalScore(engine.score)
+          setCompletedRunNumber((current) => current + 1)
           setPhase("gameover")
+          trackInBackground(recordGameOver("void-patrol", engine.score))
           return
         }
       }
@@ -2463,10 +3087,18 @@ export function SpaceShooterGame() {
   useEffect(() => {
     if (phase !== "playing") return undefined
     const keyMap: Record<string, string> = {
-      ArrowLeft: "left", a: "left", A: "left",
-      ArrowRight: "right", d: "right", D: "right",
-      ArrowUp: "up", w: "up", W: "up",
-      ArrowDown: "down", s: "down", S: "down",
+      ArrowLeft: "left",
+      a: "left",
+      A: "left",
+      ArrowRight: "right",
+      d: "right",
+      D: "right",
+      ArrowUp: "up",
+      w: "up",
+      W: "up",
+      ArrowDown: "down",
+      s: "down",
+      S: "down",
     }
     const down = (event: KeyboardEvent) => {
       engineRef.current.targetTimeScale = 1
@@ -2481,11 +3113,12 @@ export function SpaceShooterGame() {
         activateSpecial()
         return
       }
-    const key = keyMap[event.key]
-    if (!key) return
-    event.preventDefault()
-    if (engineRef.current.ship.destroyedUntil > engineRef.current.gameTime) return
-    engineRef.current.keys.add(key)
+      const key = keyMap[event.key]
+      if (!key) return
+      event.preventDefault()
+      if (engineRef.current.ship.destroyedUntil > engineRef.current.gameTime)
+        return
+      engineRef.current.keys.add(key)
     }
     const up = (event: KeyboardEvent) => {
       const key = keyMap[event.key]
@@ -2514,44 +3147,47 @@ export function SpaceShooterGame() {
 
   const moveShipToPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (phase !== "playing") return
-    if (engineRef.current.ship.destroyedUntil > engineRef.current.gameTime) return
+    if (engineRef.current.ship.destroyedUntil > engineRef.current.gameTime)
+      return
     event.preventDefault()
     const bounds = event.currentTarget.getBoundingClientRect()
-    engineRef.current.ship.targetX = ((event.clientX - bounds.left) / bounds.width) * WIDTH
-    engineRef.current.ship.targetY = ((event.clientY - bounds.top) / bounds.height) * HEIGHT
+    engineRef.current.ship.targetX =
+      ((event.clientX - bounds.left) / bounds.width) * WIDTH
+    engineRef.current.ship.targetY =
+      ((event.clientY - bounds.top) / bounds.height) * HEIGHT
   }
 
-  const selectPaletteColor = useCallback((
-    channel: "main" | "ship" | "enemy" | "power",
-    option: ColorOption
-  ) => {
-    const engineColors = engineRef.current.colors
-    if (channel === "main") {
-      setSelectedColor(option)
-      GAME_COLORS.cream = option.color
-      GAME_COLORS.dimCream = option.dim
-      engineColors.cream = option.color
-      engineColors.dimCream = option.dim
-    } else if (channel === "ship") {
-      setShipColor(option)
-      GAME_COLORS.ship = option.color
-      GAME_COLORS.shipDim = option.dim
-      engineColors.ship = option.color
-      engineColors.shipDim = option.dim
-    } else if (channel === "enemy") {
-      setEnemyColor(option)
-      GAME_COLORS.enemy = option.color
-      GAME_COLORS.enemyDim = option.dim
-      engineColors.enemy = option.color
-      engineColors.enemyDim = option.dim
-    } else {
-      setPowerColor(option)
-      GAME_COLORS.power = option.color
-      GAME_COLORS.powerDim = option.dim
-      engineColors.power = option.color
-      engineColors.powerDim = option.dim
-    }
-  }, [])
+  const selectPaletteColor = useCallback(
+    (channel: "main" | "ship" | "enemy" | "power", option: ColorOption) => {
+      const engineColors = engineRef.current.colors
+      if (channel === "main") {
+        setSelectedColor(option)
+        GAME_COLORS.cream = option.color
+        GAME_COLORS.dimCream = option.dim
+        engineColors.cream = option.color
+        engineColors.dimCream = option.dim
+      } else if (channel === "ship") {
+        setShipColor(option)
+        GAME_COLORS.ship = option.color
+        GAME_COLORS.shipDim = option.dim
+        engineColors.ship = option.color
+        engineColors.shipDim = option.dim
+      } else if (channel === "enemy") {
+        setEnemyColor(option)
+        GAME_COLORS.enemy = option.color
+        GAME_COLORS.enemyDim = option.dim
+        engineColors.enemy = option.color
+        engineColors.enemyDim = option.dim
+      } else {
+        setPowerColor(option)
+        GAME_COLORS.power = option.color
+        GAME_COLORS.powerDim = option.dim
+        engineColors.power = option.color
+        engineColors.powerDim = option.dim
+      }
+    },
+    []
+  )
 
   const colorGroups: Array<{
     id: "main" | "ship" | "enemy" | "power"
@@ -2567,24 +3203,26 @@ export function SpaceShooterGame() {
   return (
     <div
       className="space-game-shell"
-      style={{
-        "--game-color": selectedColor.color,
-        "--game-color-dim": selectedColor.dim,
-      } as CSSProperties}
+      style={
+        {
+          "--game-color": selectedColor.color,
+          "--game-color-dim": selectedColor.dim,
+        } as CSSProperties
+      }
     >
-      <div className="space-game-top-controls" aria-label="Game settings">
-        <button
-          type="button"
-          className="space-game-special space-game-settings-trigger"
-          aria-haspopup="dialog"
-          aria-expanded={settingsOpen}
-          onClick={openSettings}
-        >
-          <IconSettings aria-hidden="true" />
-          <span>SETTINGS</span>
-        </button>
-      </div>
       <div className="space-game-bezel">
+        <div className="space-game-top-controls" aria-label="Game settings">
+          <button
+            type="button"
+            className="space-game-special space-game-settings-trigger"
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            onClick={openSettings}
+          >
+            <IconSettings aria-hidden="true" />
+            <span>SETTINGS</span>
+          </button>
+        </div>
         <canvas
           ref={canvasRef}
           width={WIDTH}
@@ -2598,7 +3236,8 @@ export function SpaceShooterGame() {
             moveShipToPointer(event)
           }}
           onPointerMove={(event) => {
-            if (event.currentTarget.hasPointerCapture(event.pointerId)) moveShipToPointer(event)
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              moveShipToPointer(event)
           }}
           onPointerUp={(event) => {
             if (event.pointerType === "touch") {
@@ -2619,10 +3258,22 @@ export function SpaceShooterGame() {
         <button
           type="button"
           className="space-game-ability space-game-ability-ripple"
-          style={{ "--ability-progress": `${specialStatus.progress * 100}%` } as CSSProperties}
+          style={
+            {
+              "--ability-progress": `${specialStatus.progress * 100}%`,
+            } as CSSProperties
+          }
           disabled={phase !== "playing" || !specialStatus.ready}
-          aria-label={specialStatus.ready ? "Activate Nova Ripple" : `Nova Ripple charging, ${specialStatus.seconds} seconds`}
-          title={specialStatus.ready ? "Nova Ripple · Space" : `Charging · ${specialStatus.seconds}s`}
+          aria-label={
+            specialStatus.ready
+              ? "Activate Nova Ripple"
+              : `Nova Ripple charging, ${specialStatus.seconds} seconds`
+          }
+          title={
+            specialStatus.ready
+              ? "Nova Ripple · Space"
+              : `Charging · ${specialStatus.seconds}s`
+          }
           onClick={() => {
             engineRef.current.targetTimeScale = 1
             resumeGameAudio()
@@ -2634,9 +3285,17 @@ export function SpaceShooterGame() {
         <button
           type="button"
           className="space-game-ability space-game-ability-arm"
-          style={{ "--ability-progress": `${(armReady ? 1 : armProgress / 5) * 100}%` } as CSSProperties}
+          style={
+            {
+              "--ability-progress": `${(armReady ? 1 : armProgress / 5) * 100}%`,
+            } as CSSProperties
+          }
           disabled={phase !== "playing" || !armReady}
-          aria-label={armReady ? "Activate Titan Arm" : `Titan Arm progress, ${armProgress} of 5 survivors rescued`}
+          aria-label={
+            armReady
+              ? "Activate Titan Arm"
+              : `Titan Arm progress, ${armProgress} of 5 survivors rescued`
+          }
           title={armReady ? "Titan Arm · R" : `${armProgress}/5 rescued`}
           onClick={() => {
             engineRef.current.targetTimeScale = 1
@@ -2653,8 +3312,12 @@ export function SpaceShooterGame() {
             {phase === "gameover" ? (
               <strong>FINAL SCORE {NUMBER_FORMATTER.format(finalScore)}</strong>
             ) : (
-              <span>Infinite ammo · ship-long weapon upgrades · three revives · score-triggered bosses</span>
+              <span>
+                Infinite ammo · ship-long weapon upgrades · three revives ·
+                score-triggered bosses
+              </span>
             )}
+            <LeaderboardDialog gameId="void-patrol" gameName="Void Patrol" />
             <button type="button" onClick={startGame}>
               {phase === "gameover" ? "REBOOT MISSION" : "START MISSION"}
             </button>
@@ -2679,7 +3342,11 @@ export function SpaceShooterGame() {
                 <p>VOID PATROL SYSTEM</p>
                 <h3 id="space-game-settings-title">SETTINGS</h3>
               </div>
-              <button type="button" onClick={closeSettings} aria-label="Close game settings">
+              <button
+                type="button"
+                onClick={closeSettings}
+                aria-label="Close game settings"
+              >
                 CLOSE
               </button>
             </div>
@@ -2692,12 +3359,16 @@ export function SpaceShooterGame() {
                     value={group.selected.id}
                     aria-label={group.label}
                     onChange={(event) => {
-                      const option = COLOR_OPTIONS.find((entry) => entry.id === event.target.value)
+                      const option = COLOR_OPTIONS.find(
+                        (entry) => entry.id === event.target.value
+                      )
                       if (option) selectPaletteColor(group.id, option)
                     }}
                   >
                     {COLOR_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
                     ))}
                   </select>
                 </fieldset>
@@ -2706,14 +3377,24 @@ export function SpaceShooterGame() {
 
             <div className="space-game-settings-options">
               <button type="button" aria-pressed={!muted} onClick={toggleSound}>
-                {muted ? <IconVolumeOff aria-hidden="true" /> : <IconVolume aria-hidden="true" />}
+                {muted ? (
+                  <IconVolumeOff aria-hidden="true" />
+                ) : (
+                  <IconVolume aria-hidden="true" />
+                )}
                 <span>SOUND</span>
                 <strong>{muted ? "OFF" : "ON"}</strong>
               </button>
-              <button type="button" aria-pressed={hapticsEnabled} onClick={toggleHaptics}>
-                {hapticsEnabled
-                  ? <IconDeviceMobileVibration aria-hidden="true" />
-                  : <IconDeviceMobileOff aria-hidden="true" />}
+              <button
+                type="button"
+                aria-pressed={hapticsEnabled}
+                onClick={toggleHaptics}
+              >
+                {hapticsEnabled ? (
+                  <IconDeviceMobileVibration aria-hidden="true" />
+                ) : (
+                  <IconDeviceMobileOff aria-hidden="true" />
+                )}
                 <span>HAPTICS</span>
                 <strong>{hapticsEnabled ? "ON" : "OFF"}</strong>
               </button>
@@ -2721,6 +3402,14 @@ export function SpaceShooterGame() {
           </section>
         </div>
       )}
+      {phase === "gameover" ? (
+        <ScoreSubmissionDialog
+          key={completedRunNumber}
+          gameId="void-patrol"
+          gameName="Void Patrol"
+          score={finalScore}
+        />
+      ) : null}
     </div>
   )
 }

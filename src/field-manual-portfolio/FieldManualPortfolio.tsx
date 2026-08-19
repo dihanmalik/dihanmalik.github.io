@@ -15,6 +15,7 @@ import {
 import claudeCodeLogo from "@/assets/claudecode.svg?url&no-inline"
 import portrait from "@/assets/me4.png"
 import resume from "@/assets/CV_2026.pdf"
+import { WebsiteRatingDialog } from "@/components/WebsiteRating"
 import { useTheme } from "@/components/theme-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -106,12 +107,19 @@ function usePageInteractionHaptics() {
       if (target.closest(".manual-arcade-dialog, [data-no-page-haptic]")) return
 
       const interactive = target.closest<HTMLElement>(interactiveSelector)
-      if (!interactive || interactive.matches(":disabled, [aria-disabled='true']")) return
+      if (
+        !interactive ||
+        interactive.matches(":disabled, [aria-disabled='true']")
+      )
+        return
       navigator.vibrate(12)
     }
 
     document.addEventListener("click", handleInteraction, { capture: true })
-    return () => document.removeEventListener("click", handleInteraction, { capture: true })
+    return () =>
+      document.removeEventListener("click", handleInteraction, {
+        capture: true,
+      })
   }, [])
 }
 
@@ -192,7 +200,10 @@ function Sidebar() {
         <div className="mt-auto">
           <a
             href="/explore"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mb-5 w-full rounded-none")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "mb-5 w-full rounded-none"
+            )}
           >
             <IconSteeringWheel data-icon="inline-start" />
             Enter 3D world
@@ -422,7 +433,7 @@ function WorkIndex() {
                 <IconPlus className="manual-index-plus" />
               </div>
             </summary>
-            <div className="grid gap-7 pb-8 sm:ml-44 sm:grid-cols-[1fr_auto]">
+            <div className="grid gap-7 pr-10 pb-8 sm:ml-44 sm:grid-cols-[1fr_auto]">
               <div>
                 <p className="text-xs font-semibold tracking-[0.12em] uppercase">
                   {entry.role}
@@ -680,6 +691,7 @@ function Contact() {
             Resume
             <IconDownload data-icon="inline-end" />
           </a>
+          <WebsiteRatingDialog />
         </div>
 
         <div className="flex items-center gap-5 text-sm">
@@ -706,7 +718,12 @@ function Contact() {
 
       <p className="mt-16 flex flex-wrap items-center justify-between gap-3 text-[0.65rem] tracking-[0.14em] text-muted-foreground uppercase">
         <span>Nahid Abdulmalik © {new Date().getFullYear()}</span>
-        <span>Built with intent. Optimized with evidence.</span>
+        <span className="flex flex-wrap items-center gap-3">
+          <a className="underline underline-offset-4" href="/privacy">
+            Privacy choices
+          </a>
+          <span>Built with intent. Optimized with evidence.</span>
+        </span>
       </p>
     </footer>
   )

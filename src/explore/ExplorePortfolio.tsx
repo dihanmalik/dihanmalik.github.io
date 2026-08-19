@@ -9,6 +9,7 @@ import {
   IconCode,
   IconMail,
   IconMapPin,
+  IconMessageStar,
   IconMaximize,
   IconMinimize,
   IconPlayerPlayFilled,
@@ -25,14 +26,19 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
 import resume from "@/assets/CV_2026.pdf"
 import portrait from "@/assets/me4.png"
-import { educationEntries, optimizationNotes, workEntries } from "@/field-manual-portfolio/data"
+import { WebsiteRatingForm } from "@/components/WebsiteRating"
+import {
+  educationEntries,
+  optimizationNotes,
+  workEntries,
+} from "@/field-manual-portfolio/data"
 import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
 
 import { carModelUrl, loadNatureAsset, NATURE_ASSETS } from "./exploreAssets"
 
 import "./explore-portfolio.css"
 
-type StationId = "hello" | "work" | "stack" | "contact"
+type StationId = "hello" | "work" | "stack" | "contact" | "feedback"
 type LightMode = "Daylight" | "Night"
 type NatureInteraction = {
   x: number
@@ -57,10 +63,46 @@ type Station = {
 }
 
 const STATIONS: Station[] = [
-  { id: "hello", label: "Start here", eyebrow: "01 / Hello", x: -29.7, z: 31.1, color: 0xff5b35 },
-  { id: "work", label: "Selected work", eyebrow: "02 / Career", x: -35.2, z: -24.8, color: 0x5eead4 },
-  { id: "stack", label: "The lab", eyebrow: "03 / Toolkit", x: 32.1, z: -28.6, color: 0xffd166 },
-  { id: "contact", label: "Open channel", eyebrow: "04 / Contact", x: 28.3, z: 32.3, color: 0xc4b5fd },
+  {
+    id: "hello",
+    label: "Start here",
+    eyebrow: "01 / Hello",
+    x: -29.7,
+    z: 31.1,
+    color: 0xff5b35,
+  },
+  {
+    id: "work",
+    label: "Selected work",
+    eyebrow: "02 / Career",
+    x: -35.2,
+    z: -24.8,
+    color: 0x5eead4,
+  },
+  {
+    id: "stack",
+    label: "The lab",
+    eyebrow: "03 / Toolkit",
+    x: 32.1,
+    z: -28.6,
+    color: 0xffd166,
+  },
+  {
+    id: "contact",
+    label: "Open channel",
+    eyebrow: "04 / Contact",
+    x: 28.3,
+    z: 32.3,
+    color: 0xc4b5fd,
+  },
+  {
+    id: "feedback",
+    label: "Rate this world",
+    eyebrow: "05 / Feedback",
+    x: 0,
+    z: -45,
+    color: 0xf472b6,
+  },
 ]
 
 const TECH = getTechLogos()
@@ -103,7 +145,9 @@ function isGreenLandAt(x: number, z: number) {
   const isStation = STATIONS.some(
     (station) => Math.hypot(x - station.x, z - station.z) < 7.5
   )
-  return radius >= 9 && radius <= 48 && !isRingRoad && !isCrossRoad && !isStation
+  return (
+    radius >= 9 && radius <= 48 && !isRingRoad && !isCrossRoad && !isStation
+  )
 }
 
 function resolveCircularCollision(
@@ -175,11 +219,18 @@ function createIslandTerrain() {
   }
 
   const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3)
+  )
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3))
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, flatShading: true })
+  const material = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.96,
+    flatShading: true,
+  })
   const terrain = new THREE.Mesh(geometry, material)
   terrain.receiveShadow = true
   return terrain
@@ -210,7 +261,9 @@ function placeNature(scene: THREE.Scene, assets: THREE.Group[]) {
     })
   }
   const overlapsStation = (x: number, z: number, clearance: number) =>
-    STATIONS.some((station) => Math.hypot(x - station.x, z - station.z) < clearance)
+    STATIONS.some(
+      (station) => Math.hypot(x - station.x, z - station.z) < clearance
+    )
 
   for (let index = 0; index < 72; index += 1) {
     const angle = (index / 72) * Math.PI * 2
@@ -267,7 +320,9 @@ function placeNature(scene: THREE.Scene, assets: THREE.Group[]) {
     const patchX = Math.cos(angle) * radius
     const patchZ = Math.sin(angle) * radius
     if (overlapsStation(patchX, patchZ, 8)) continue
-    const patch = (index % 5 === 0 ? mushroom : index % 3 ? grass : flower).clone()
+    const patch = (
+      index % 5 === 0 ? mushroom : index % 3 ? grass : flower
+    ).clone()
     patch.position.set(patchX, 0.02, patchZ)
     patch.rotation.y = angle
     patch.scale.multiplyScalar(0.75 + (index % 5) * 0.08)
@@ -315,7 +370,11 @@ function placeNature(scene: THREE.Scene, assets: THREE.Group[]) {
     const centerZ = Math.sin(clusterAngle) * clusterRadius
     if (!isGreenLandAt(centerX, centerZ)) continue
     const bambooCluster = new THREE.Group()
-    bambooCluster.position.set(centerX, terrainHeightAt(centerX, centerZ), centerZ)
+    bambooCluster.position.set(
+      centerX,
+      terrainHeightAt(centerX, centerZ),
+      centerZ
+    )
     const stalkCount = 3 + Math.floor(random() * 4)
     for (let index = 0; index < stalkCount; index += 1) {
       const angle = random() * Math.PI * 2
@@ -368,7 +427,11 @@ function placeNature(scene: THREE.Scene, assets: THREE.Group[]) {
       )
       const scale = 0.58 + random() * 0.72
       grassTransforms.push(
-        new THREE.Matrix4().compose(position, rotation, new THREE.Vector3(scale, scale, scale))
+        new THREE.Matrix4().compose(
+          position,
+          rotation,
+          new THREE.Vector3(scale, scale, scale)
+        )
       )
     }
     addInteraction(x, z, 3.15, "grass")
@@ -415,7 +478,11 @@ function createExploreSoundscape(context: AudioContext) {
   nightBus.connect(master)
   master.connect(context.destination)
 
-  const noiseBuffer = context.createBuffer(1, context.sampleRate * 8, context.sampleRate)
+  const noiseBuffer = context.createBuffer(
+    1,
+    context.sampleRate * 8,
+    context.sampleRate
+  )
   const noise = noiseBuffer.getChannelData(0)
   let rollingNoise = 0
   for (let index = 0; index < noise.length; index += 1) {
@@ -436,11 +503,13 @@ function createExploreSoundscape(context: AudioContext) {
     for (let index = 0; index < data.length; index += 1) {
       const raw = Math.random() * 2 - 1
       softened += (raw - softened) * 0.075
-      if (Math.random() < crackleChance) crackle += (Math.random() * 2 - 1) * 1.5
+      if (Math.random() < crackleChance)
+        crackle += (Math.random() * 2 - 1) * 1.5
       crackle *= 0.84
       const progress = index / data.length
       const envelope = Math.pow(Math.sin(progress * Math.PI), 0.52)
-      data[index] = ((raw - softened) * 0.42 + softened * 0.7 + crackle) * envelope
+      data[index] =
+        ((raw - softened) * 0.42 + softened * 0.7 + crackle) * envelope
       peak = Math.max(peak, Math.abs(data[index]))
     }
     const normalization = peak > 0 ? 0.88 / peak : 1
@@ -455,7 +524,9 @@ function createExploreSoundscape(context: AudioContext) {
     bush: Array.from({ length: 3 }, () => createFoliageBuffer(0.42, 0.0011)),
     bamboo: Array.from({ length: 3 }, () => createFoliageBuffer(0.36, 0.0007)),
     tree: Array.from({ length: 3 }, () => createFoliageBuffer(0.38, 0.0013)),
-    mushroom: Array.from({ length: 3 }, () => createFoliageBuffer(0.18, 0.0005)),
+    mushroom: Array.from({ length: 3 }, () =>
+      createFoliageBuffer(0.18, 0.0005)
+    ),
     cactus: Array.from({ length: 3 }, () => createFoliageBuffer(0.24, 0.0016)),
     rock: Array.from({ length: 3 }, () => createFoliageBuffer(0.16, 0.002)),
   }
@@ -472,11 +543,14 @@ function createExploreSoundscape(context: AudioContext) {
     grassBody += (raw - grassBody) * 0.025
     if (Math.random() < 0.0017) grassCrunch += 0.55 + Math.random() * 0.75
     grassCrunch *= 0.91
-    const unevenGround = 0.72 + Math.sin(index * 0.00091) * 0.16
-      + Math.sin(index * 0.0027 + 1.4) * 0.1
-    grassTexture[index] = ((raw - grassBody) * 0.28 + grassBody * 0.75 + grassCrunch)
-      * unevenGround
-      * 0.42
+    const unevenGround =
+      0.72 +
+      Math.sin(index * 0.00091) * 0.16 +
+      Math.sin(index * 0.0027 + 1.4) * 0.1
+    grassTexture[index] =
+      ((raw - grassBody) * 0.28 + grassBody * 0.75 + grassCrunch) *
+      unevenGround *
+      0.42
   }
   const ocean = context.createBufferSource()
   ocean.buffer = noiseBuffer
@@ -495,7 +569,11 @@ function createExploreSoundscape(context: AudioContext) {
   slowWaveDepth.gain.value = 0.006
   slowWaveLfo.connect(slowWaveDepth).connect(oceanGain.gain)
 
-  const surfBuffer = context.createBuffer(1, context.sampleRate * 6, context.sampleRate)
+  const surfBuffer = context.createBuffer(
+    1,
+    context.sampleRate * 6,
+    context.sampleRate
+  )
   const surfNoise = surfBuffer.getChannelData(0)
   let softenedNoise = 0
   for (let index = 0; index < surfNoise.length; index += 1) {
@@ -568,15 +646,18 @@ function createExploreSoundscape(context: AudioContext) {
         const duration = durations[callType]
         const noteStart = chirpStart + birdOffset + note * spacings[callType]
         const alternating = note % 2 === 0 ? 1 : 1.22
-        const startFrequency = base * (callType === 2 ? alternating : 1 + note * 0.035)
-        const peakFrequency = callType === 3
-          ? startFrequency * 0.82
-          : callType === 1
-            ? startFrequency * (note % 2 ? 0.9 : 1.2)
-            : startFrequency * 1.58
-        const endFrequency = callType === 3
-          ? startFrequency * 0.68
-          : startFrequency * (callType === 2 ? 0.92 : 1.06)
+        const startFrequency =
+          base * (callType === 2 ? alternating : 1 + note * 0.035)
+        const peakFrequency =
+          callType === 3
+            ? startFrequency * 0.82
+            : callType === 1
+              ? startFrequency * (note % 2 ? 0.9 : 1.2)
+              : startFrequency * 1.58
+        const endFrequency =
+          callType === 3
+            ? startFrequency * 0.68
+            : startFrequency * (callType === 2 ? 0.92 : 1.06)
         oscillator.type = callType === 2 || callType === 3 ? "triangle" : "sine"
         oscillator.frequency.setValueAtTime(startFrequency, noteStart)
         oscillator.frequency.exponentialRampToValueAtTime(
@@ -638,10 +719,13 @@ function createExploreSoundscape(context: AudioContext) {
     rock: -Infinity,
   }
   const scheduleBirds = () => {
-    birdTimer = window.setTimeout(() => {
-      playBird()
-      scheduleBirds()
-    }, 850 + Math.random() * 2_650)
+    birdTimer = window.setTimeout(
+      () => {
+        playBird()
+        scheduleBirds()
+      },
+      850 + Math.random() * 2_650
+    )
   }
   scheduleBirds()
   const insectTimer = window.setInterval(() => {
@@ -686,7 +770,10 @@ function createExploreSoundscape(context: AudioContext) {
     hornActive = false
     const hornStop = context.currentTime
     hornGain.gain.cancelScheduledValues(hornStop)
-    hornGain.gain.setValueAtTime(Math.max(0.0001, hornGain.gain.value), hornStop)
+    hornGain.gain.setValueAtTime(
+      Math.max(0.0001, hornGain.gain.value),
+      hornStop
+    )
     hornGain.gain.exponentialRampToValueAtTime(0.0001, hornStop + 0.09)
     hornOscillators.forEach((oscillator) => oscillator.stop(hornStop + 0.1))
     hornVibrato?.stop(hornStop + 0.1)
@@ -698,10 +785,12 @@ function createExploreSoundscape(context: AudioContext) {
     update(dayFactor: number, speedFactor: number, onGreenLand: boolean) {
       dayBus.gain.value = dayFactor
       nightBus.gain.value = 1 - dayFactor
-      engine.frequency.value += (82 + speedFactor * 168 - engine.frequency.value) * 0.06
+      engine.frequency.value +=
+        (82 + speedFactor * 168 - engine.frequency.value) * 0.06
       engineFilter.frequency.value +=
         (560 + speedFactor * 440 - engineFilter.frequency.value) * 0.06
-      engineGain.gain.value += (speedFactor * 0.012 - engineGain.gain.value) * 0.08
+      engineGain.gain.value +=
+        (speedFactor * 0.012 - engineGain.gain.value) * 0.08
       grassDrive.playbackRate.value +=
         (0.68 + speedFactor * 1.22 - grassDrive.playbackRate.value) * 0.07
       grassFilter.frequency.value +=
@@ -746,7 +835,10 @@ function createExploreSoundscape(context: AudioContext) {
       thud.frequency.setValueAtTime(135 + strength * 45, impactStart)
       thud.frequency.exponentialRampToValueAtTime(58, impactStart + 0.14)
       thudGain.gain.setValueAtTime(0.0001, impactStart)
-      thudGain.gain.exponentialRampToValueAtTime(0.025 * strength, impactStart + 0.008)
+      thudGain.gain.exponentialRampToValueAtTime(
+        0.025 * strength,
+        impactStart + 0.008
+      )
       thudGain.gain.exponentialRampToValueAtTime(0.0001, impactStart + 0.17)
       thud.connect(thudGain).connect(master)
 
@@ -756,7 +848,10 @@ function createExploreSoundscape(context: AudioContext) {
       scrapeFilter.frequency.value = 620 + strength * 520
       scrapeFilter.Q.value = 0.72
       scrapeGain.gain.setValueAtTime(0.0001, impactStart)
-      scrapeGain.gain.exponentialRampToValueAtTime(0.012 * strength, impactStart + 0.006)
+      scrapeGain.gain.exponentialRampToValueAtTime(
+        0.012 * strength,
+        impactStart + 0.006
+      )
       scrapeGain.gain.exponentialRampToValueAtTime(0.0001, impactStart + 0.11)
       scrape.connect(scrapeFilter).connect(scrapeGain).connect(master)
 
@@ -778,23 +873,27 @@ function createExploreSoundscape(context: AudioContext) {
       const rustleGain = context.createGain()
       const panner = context.createStereoPanner()
       const variants = foliageBuffers[kind]
-      const peakGain = kind === "grass"
-        ? 0.011
-        : kind === "bamboo"
-          ? 0.046
-          : kind === "mushroom"
-            ? 0.018
-            : kind === "cactus"
-              ? 0.032
-              : 0.052
+      const peakGain =
+        kind === "grass"
+          ? 0.011
+          : kind === "bamboo"
+            ? 0.046
+            : kind === "mushroom"
+              ? 0.018
+              : kind === "cactus"
+                ? 0.032
+                : 0.052
       rustle.buffer = variants[Math.floor(Math.random() * variants.length)]
-      rustle.playbackRate.value = kind === "grass"
-        ? 1.05 + Math.random() * 0.32
-        : 0.88 + Math.random() * 0.25
+      rustle.playbackRate.value =
+        kind === "grass"
+          ? 1.05 + Math.random() * 0.32
+          : 0.88 + Math.random() * 0.25
       rustleHighpass.type = "highpass"
-      rustleHighpass.frequency.value = kind === "grass" ? 1_150 : kind === "bamboo" ? 720 : 430
+      rustleHighpass.frequency.value =
+        kind === "grass" ? 1_150 : kind === "bamboo" ? 720 : 430
       rustleLowpass.type = "lowpass"
-      rustleLowpass.frequency.value = kind === "grass" ? 5_200 : kind === "bamboo" ? 4_800 : 3_600
+      rustleLowpass.frequency.value =
+        kind === "grass" ? 5_200 : kind === "bamboo" ? 4_800 : 3_600
       rustleLowpass.Q.value = 0.42
       panner.pan.value = Math.random() * 0.8 - 0.4
       rustleGain.gain.setValueAtTime(0.0001, rustleStart)
@@ -817,7 +916,8 @@ function createExploreSoundscape(context: AudioContext) {
       if (kind === "bamboo") {
         const knockCount = 2 + Math.floor(Math.random() * 2)
         for (let index = 0; index < knockCount; index += 1) {
-          const knockStart = rustleStart + index * (0.035 + Math.random() * 0.025)
+          const knockStart =
+            rustleStart + index * (0.035 + Math.random() * 0.025)
           const knock = context.createBufferSource()
           const knockFilter = context.createBiquadFilter()
           const knockGain = context.createGain()
@@ -827,8 +927,14 @@ function createExploreSoundscape(context: AudioContext) {
           knockFilter.frequency.value = 520 + index * 230 + Math.random() * 110
           knockFilter.Q.value = 7.5
           knockGain.gain.setValueAtTime(0.0001, knockStart)
-          knockGain.gain.exponentialRampToValueAtTime(0.032 * strength, knockStart + 0.003)
-          knockGain.gain.exponentialRampToValueAtTime(0.0001, knockStart + 0.065)
+          knockGain.gain.exponentialRampToValueAtTime(
+            0.032 * strength,
+            knockStart + 0.003
+          )
+          knockGain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            knockStart + 0.065
+          )
           knock.connect(knockFilter).connect(knockGain).connect(panner)
           knock.start(knockStart, Math.random() * 5, 0.07)
         }
@@ -841,7 +947,10 @@ function createExploreSoundscape(context: AudioContext) {
         twigFilter.type = "highpass"
         twigFilter.frequency.value = 2_200 + Math.random() * 900
         twigGain.gain.setValueAtTime(0.0001, twigStart)
-        twigGain.gain.exponentialRampToValueAtTime(0.016 * strength, twigStart + 0.002)
+        twigGain.gain.exponentialRampToValueAtTime(
+          0.016 * strength,
+          twigStart + 0.002
+        )
         twigGain.gain.exponentialRampToValueAtTime(0.0001, twigStart + 0.028)
         twig.connect(twigFilter).connect(twigGain).connect(panner)
         twig.start(twigStart, Math.random() * 5, 0.035)
@@ -853,7 +962,10 @@ function createExploreSoundscape(context: AudioContext) {
       window.clearInterval(insectTimer)
       const stopAt = context.currentTime + 0.45
       master.gain.cancelScheduledValues(context.currentTime)
-      master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), context.currentTime)
+      master.gain.setValueAtTime(
+        Math.max(0.0001, master.gain.value),
+        context.currentTime
+      )
       master.gain.exponentialRampToValueAtTime(0.0001, stopAt)
       ocean.stop(stopAt)
       surf.stop(stopAt)
@@ -925,14 +1037,19 @@ function create3DLabel(
     if (!glyph) continue
     glyph.forEach((row, rowIndex) => {
       for (let column = 0; column < row.length; column += 1) {
-        if (row[column] === "1") pixels.push({ x: cursor + column, y: 6 - rowIndex })
+        if (row[column] === "1")
+          pixels.push({ x: cursor + column, y: 6 - rowIndex })
       }
     })
     cursor += letterStep
   }
 
   const width = Math.max(1, cursor - 1)
-  const geometry = new THREE.BoxGeometry(pixelSize * 0.86, pixelSize * 0.86, depth)
+  const geometry = new THREE.BoxGeometry(
+    pixelSize * 0.86,
+    pixelSize * 0.86,
+    depth
+  )
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive: color,
@@ -997,10 +1114,22 @@ function createStation3DIcon(id: StationId, color: number) {
     addMesh(new THREE.SphereGeometry(0.22, 12, 8), accentMaterial, [0, 0, 0.48])
   } else if (id === "work") {
     addMesh(new THREE.BoxGeometry(1.72, 1.02, 0.5))
-    addMesh(new THREE.BoxGeometry(1.76, 0.12, 0.56), accentMaterial, [0, 0.12, 0])
+    addMesh(
+      new THREE.BoxGeometry(1.76, 0.12, 0.56),
+      accentMaterial,
+      [0, 0.12, 0]
+    )
     addMesh(new THREE.BoxGeometry(0.72, 0.15, 0.28), mainMaterial, [0, 0.7, 0])
-    addMesh(new THREE.BoxGeometry(0.14, 0.45, 0.28), mainMaterial, [-0.3, 0.55, 0])
-    addMesh(new THREE.BoxGeometry(0.14, 0.45, 0.28), mainMaterial, [0.3, 0.55, 0])
+    addMesh(
+      new THREE.BoxGeometry(0.14, 0.45, 0.28),
+      mainMaterial,
+      [-0.3, 0.55, 0]
+    )
+    addMesh(
+      new THREE.BoxGeometry(0.14, 0.45, 0.28),
+      mainMaterial,
+      [0.3, 0.55, 0]
+    )
   } else if (id === "stack") {
     const bracketParts = [
       { x: -0.58, y: 0.28, rotation: -0.62 },
@@ -1009,20 +1138,58 @@ function createStation3DIcon(id: StationId, color: number) {
       { x: 0.58, y: -0.28, rotation: -0.62 },
     ]
     bracketParts.forEach(({ x, y, rotation }) => {
-      const bar = addMesh(new THREE.BoxGeometry(0.18, 0.92, 0.38), mainMaterial, [x, y, 0])
+      const bar = addMesh(
+        new THREE.BoxGeometry(0.18, 0.92, 0.38),
+        mainMaterial,
+        [x, y, 0]
+      )
       bar.rotation.z = rotation
     })
-    const slash = addMesh(new THREE.BoxGeometry(0.16, 1.72, 0.42), accentMaterial)
+    const slash = addMesh(
+      new THREE.BoxGeometry(0.16, 1.72, 0.42),
+      accentMaterial
+    )
     slash.rotation.z = -0.34
-  } else {
+  } else if (id === "contact") {
     addMesh(new THREE.CylinderGeometry(0.34, 0.46, 1.32, 10))
     addMesh(new THREE.ConeGeometry(0.35, 0.62, 10), mainMaterial, [0, 0.96, 0])
-    addMesh(new THREE.SphereGeometry(0.2, 12, 8), accentMaterial, [0, 0.2, 0.38])
-    const leftFin = addMesh(new THREE.BoxGeometry(0.22, 0.62, 0.35), mainMaterial, [-0.47, -0.47, 0])
-    const rightFin = addMesh(new THREE.BoxGeometry(0.22, 0.62, 0.35), mainMaterial, [0.47, -0.47, 0])
+    addMesh(
+      new THREE.SphereGeometry(0.2, 12, 8),
+      accentMaterial,
+      [0, 0.2, 0.38]
+    )
+    const leftFin = addMesh(
+      new THREE.BoxGeometry(0.22, 0.62, 0.35),
+      mainMaterial,
+      [-0.47, -0.47, 0]
+    )
+    const rightFin = addMesh(
+      new THREE.BoxGeometry(0.22, 0.62, 0.35),
+      mainMaterial,
+      [0.47, -0.47, 0]
+    )
     leftFin.rotation.z = -0.32
     rightFin.rotation.z = 0.32
-    addMesh(new THREE.ConeGeometry(0.24, 0.55, 8), accentMaterial, [0, -0.92, 0]).rotation.z = Math.PI
+    addMesh(
+      new THREE.ConeGeometry(0.24, 0.55, 8),
+      accentMaterial,
+      [0, -0.92, 0]
+    ).rotation.z = Math.PI
+  } else {
+    addMesh(new THREE.BoxGeometry(1.8, 1.15, 0.42))
+    const tail = addMesh(
+      new THREE.ConeGeometry(0.28, 0.56, 4),
+      mainMaterial,
+      [-0.48, -0.72, 0]
+    )
+    tail.rotation.z = 0.62
+    ;[-0.5, 0, 0.5].forEach((x) => {
+      addMesh(new THREE.SphereGeometry(0.13, 10, 8), accentMaterial, [
+        x,
+        0,
+        0.34,
+      ])
+    })
   }
 
   icon.userData.glowMaterials = [mainMaterial, accentMaterial]
@@ -1082,10 +1249,7 @@ function createStation(scene: THREE.Scene, station: Station) {
       roughness: 0.72,
       flatShading: true,
     })
-    const mesh = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(0.8, 1),
-      material
-    )
+    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8, 1), material)
     const baseX = -2.2 + index * 2.2
     const baseY = 1.75 + index * 0.2
     const baseZ = 0.2
@@ -1104,7 +1268,15 @@ function createStation(scene: THREE.Scene, station: Station) {
     halo.scale.setScalar(3.65)
     mesh.add(halo)
     group.add(mesh)
-    return { mesh, material, haloMaterial, baseX, baseY, baseZ, phase: index * 2.1 }
+    return {
+      mesh,
+      material,
+      haloMaterial,
+      baseX,
+      baseY,
+      baseZ,
+      phase: index * 2.1,
+    }
   })
 
   const beacon = new THREE.Mesh(
@@ -1134,7 +1306,10 @@ function createCar() {
   addBox(car, [0.45, 0.22, 0.1], [0.78, 1.02, 2.23], 0xfff4b8)
 
   const wheelGeometry = new THREE.CylinderGeometry(0.52, 0.52, 0.36, 12)
-  const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.9 })
+  const wheelMaterial = new THREE.MeshStandardMaterial({
+    color: 0x181818,
+    roughness: 0.9,
+  })
   const wheels: THREE.Mesh[] = []
   ;[-1, 1].forEach((side) => {
     ;[-1.35, 1.35].forEach((front) => {
@@ -1150,10 +1325,35 @@ function createCar() {
   return car
 }
 
-function StationPanel({ station, onClose }: { station: Station; onClose: () => void }) {
+function WebsiteRatingStation() {
   return (
-    <section className="explore-panel" aria-modal="true" role="dialog" aria-labelledby="station-title">
-      <button className="explore-panel-close" type="button" onClick={onClose} aria-label="Close panel">
+    <WebsiteRatingForm
+      className="explore-rating-form"
+      statusClassName="explore-rating-status"
+    />
+  )
+}
+
+function StationPanel({
+  station,
+  onClose,
+}: {
+  station: Station
+  onClose: () => void
+}) {
+  return (
+    <section
+      className="explore-panel"
+      aria-modal="true"
+      role="dialog"
+      aria-labelledby="station-title"
+    >
+      <button
+        className="explore-panel-close"
+        type="button"
+        onClick={onClose}
+        aria-label="Close panel"
+      >
         <IconX />
       </button>
       <p className="explore-panel-eyebrow">{station.eyebrow}</p>
@@ -1163,14 +1363,25 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
           <IconSparkles className="explore-panel-icon" />
           <h2 id="station-title">Built to be used, tuned to be fast.</h2>
           <p>
-            I&apos;m Dihan. I build frontend systems for products with real operational
-            weight—and I stay around to make them faster, clearer, and easier to evolve.
+            I&apos;m Dihan. I build frontend systems for products with real
+            operational weight—and I stay around to make them faster, clearer,
+            and easier to evolve.
           </p>
-          <img className="explore-panel-portrait" src={portrait} alt="Nahid Abdulmalik" />
+          <img
+            className="explore-panel-portrait"
+            src={portrait}
+            alt="Nahid Abdulmalik"
+          />
           <div className="explore-stats">
-            <span><strong>10+</strong> years building</span>
-            <span><strong>5</strong> product domains</span>
-            <span><strong>GMT+8</strong> Philippines</span>
+            <span>
+              <strong>10+</strong> years building
+            </span>
+            <span>
+              <strong>5</strong> product domains
+            </span>
+            <span>
+              <strong>GMT+8</strong> Philippines
+            </span>
           </div>
 
           <div className="explore-panel-section">
@@ -1178,21 +1389,33 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
             <h3>Performance is not a final polish.</h3>
             <p>
               It shapes architecture, interaction, and whether a product feels
-              trustworthy. I optimize with evidence, then protect the improvement
-              with repeatable engineering habits.
+              trustworthy. I optimize with evidence, then protect the
+              improvement with repeatable engineering habits.
             </p>
             <div className="explore-principle-list">
               {optimizationNotes.map((item, index) => (
                 <article key={item.title}>
                   <span>0{index + 1}</span>
-                  <div><strong>{item.title}</strong><p>{item.copy}</p></div>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{item.copy}</p>
+                  </div>
                 </article>
               ))}
             </div>
             <div className="explore-method-grid">
-              <span><strong>Measure</strong>Runtime behavior · bundles · network · user flows</span>
-              <span><strong>Prioritize</strong>User impact · frequency · engineering cost</span>
-              <span><strong>Verify</strong>Before/after evidence · regression coverage</span>
+              <span>
+                <strong>Measure</strong>Runtime behavior · bundles · network ·
+                user flows
+              </span>
+              <span>
+                <strong>Prioritize</strong>User impact · frequency · engineering
+                cost
+              </span>
+              <span>
+                <strong>Verify</strong>Before/after evidence · regression
+                coverage
+              </span>
             </div>
           </div>
         </>
@@ -1202,19 +1425,33 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
         <>
           <IconBriefcase className="explore-panel-icon" />
           <h2 id="station-title">Work with operational weight.</h2>
-          <p>Five teams across fintech, aerospace, ticketing, travel, and product foundations.</p>
+          <p>
+            Five teams across fintech, aerospace, ticketing, travel, and product
+            foundations.
+          </p>
           <div className="explore-experience-list">
             {workEntries.map((entry, index) => (
               <article key={entry.company}>
                 <div className="explore-entry-heading">
-                  <span>0{index + 1} / {entry.period}</span>
-                  <a href={entry.href} target="_blank" rel="noreferrer" aria-label={`Visit ${entry.company}`}><IconArrowUpRight /></a>
+                  <span>
+                    0{index + 1} / {entry.period}
+                  </span>
+                  <a
+                    href={entry.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Visit ${entry.company}`}
+                  >
+                    <IconArrowUpRight />
+                  </a>
                 </div>
                 <h3>{entry.company}</h3>
                 <strong>{entry.role}</strong>
                 <p>{entry.note}</p>
                 <div className="explore-entry-tags">
-                  {entry.focus.map((item) => <span key={item}>/ {item}</span>)}
+                  {entry.focus.map((item) => (
+                    <span key={item}>/ {item}</span>
+                  ))}
                 </div>
               </article>
             ))}
@@ -1229,11 +1466,22 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
                   <span>{entry.period}</span>
                   <div className="explore-entry-heading">
                     <h4>{entry.title}</h4>
-                    {entry.href ? <a href={entry.href} target="_blank" rel="noreferrer" aria-label={`Visit ${entry.title}`}><IconArrowUpRight /></a> : null}
+                    {entry.href ? (
+                      <a
+                        href={entry.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Visit ${entry.title}`}
+                      >
+                        <IconArrowUpRight />
+                      </a>
+                    ) : null}
                   </div>
                   <p>{entry.description}</p>
                   <div className="explore-entry-tags">
-                    {entry.highlights.map((item) => <span key={item}>/ {item}</span>)}
+                    {entry.highlights.map((item) => (
+                      <span key={item}>/ {item}</span>
+                    ))}
                   </div>
                 </article>
               ))}
@@ -1246,10 +1494,18 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
         <>
           <IconCode className="explore-panel-icon" />
           <h2 id="station-title">Tools change. Good judgment compounds.</h2>
-          <p>I work across frontend architecture, real-time interfaces, mapping, data flows, performance, and the backend edges that support them.</p>
+          <p>
+            I work across frontend architecture, real-time interfaces, mapping,
+            data flows, performance, and the backend edges that support them.
+          </p>
           <div className="explore-tech-list">
             {TECH.map((tech) => (
-              <a key={tech.title} href={tech.href} target="_blank" rel="noreferrer">
+              <a
+                key={tech.title}
+                href={tech.href}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {tech.node}
                 <span>{tech.title}</span>
               </a>
@@ -1258,21 +1514,55 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
 
           <div className="explore-panel-section">
             <p className="explore-panel-kicker">Extending the stack</p>
-            <h3>Frontend specialist. Full-stack capable with the right companion.</h3>
+            <h3>
+              Frontend specialist. Full-stack capable with the right companion.
+            </h3>
             <p>
               I use <strong>Claude Code</strong> as a context-aware engineering
-              companion to work confidently across the stack. I understand how to
-              structure the context around the work—not just how to ask for code.
+              companion to work confidently across the stack. I understand how
+              to structure the context around the work—not just how to ask for
+              code.
             </p>
             <div className="explore-ai-topics">
-              <span>Agents</span><span>Plugins</span><span>Skills</span>
-              <span>Hooks</span><span>Rules</span><span>MCP integrations</span>
+              <span>Agents</span>
+              <span>Plugins</span>
+              <span>Skills</span>
+              <span>Hooks</span>
+              <span>Rules</span>
+              <span>MCP integrations</span>
               <span>Repo context</span>
             </div>
             <div className="explore-principle-list">
-              <article><span>01</span><div><strong>Structure</strong><p>Give the companion durable project knowledge, clear boundaries, and the right instructions.</p></div></article>
-              <article><span>02</span><div><strong>Integrate</strong><p>Connect tools and services through MCP instead of reducing every workflow to copied text.</p></div></article>
-              <article><span>03</span><div><strong>Verify</strong><p>Keep architectural judgment, testing, review, and ownership firmly human.</p></div></article>
+              <article>
+                <span>01</span>
+                <div>
+                  <strong>Structure</strong>
+                  <p>
+                    Give the companion durable project knowledge, clear
+                    boundaries, and the right instructions.
+                  </p>
+                </div>
+              </article>
+              <article>
+                <span>02</span>
+                <div>
+                  <strong>Integrate</strong>
+                  <p>
+                    Connect tools and services through MCP instead of reducing
+                    every workflow to copied text.
+                  </p>
+                </div>
+              </article>
+              <article>
+                <span>03</span>
+                <div>
+                  <strong>Verify</strong>
+                  <p>
+                    Keep architectural judgment, testing, review, and ownership
+                    firmly human.
+                  </p>
+                </div>
+              </article>
             </div>
           </div>
         </>
@@ -1281,22 +1571,56 @@ function StationPanel({ station, onClose }: { station: Station; onClose: () => v
       {station.id === "contact" ? (
         <>
           <IconRocket className="explore-panel-icon" />
-          <h2 id="station-title">A good opportunity deserves a conversation.</h2>
+          <h2 id="station-title">
+            A good opportunity deserves a conversation.
+          </h2>
           <p>
-            I&apos;m quietly open to a strong team, a useful problem, senior frontend
-            opportunities, and thoughtful product work.
+            I&apos;m quietly open to a strong team, a useful problem, senior
+            frontend opportunities, and thoughtful product work.
           </p>
           <div className="explore-availability">
             <strong>Currently open for new opportunities</strong>
             <span>Frontend engineer · Philippines / GMT+8</span>
           </div>
           <div className="explore-contact-links">
-            <a href="mailto:abdulmaliknahid@gmail.com"><IconMail /> Email me</a>
-            <a href="https://github.com/dihanmalik" target="_blank" rel="noreferrer"><IconBrandGithub /> GitHub</a>
-            <a href="https://www.linkedin.com/in/abdulmaliknahid/" target="_blank" rel="noreferrer"><IconBrandLinkedin /> LinkedIn</a>
-            <a href={resume} target="_blank" rel="noreferrer">Résumé <IconArrowUpRight /></a>
+            <a href="mailto:abdulmaliknahid@gmail.com">
+              <IconMail /> Email me
+            </a>
+            <a
+              href="https://github.com/dihanmalik"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <IconBrandGithub /> GitHub
+            </a>
+            <a
+              href="https://www.linkedin.com/in/abdulmaliknahid/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <IconBrandLinkedin /> LinkedIn
+            </a>
+            <a href={resume} target="_blank" rel="noreferrer">
+              Résumé <IconArrowUpRight />
+            </a>
           </div>
-          <p className="explore-panel-signoff">Nahid Abdulmalik · Built with intent. Optimized with evidence.</p>
+          <p className="explore-panel-signoff">
+            Nahid Abdulmalik · Built with intent. Optimized with evidence.
+          </p>
+        </>
+      ) : null}
+
+      {station.id === "feedback" ? (
+        <>
+          <IconMessageStar className="explore-panel-icon" />
+          <h2 id="station-title">How did this portfolio land?</h2>
+          <p>
+            Leave one quick rating. No name or message is stored, and no IP
+            address is added to the portfolio database—only the score, whether
+            you are visiting or recruiting, and an anonymous browser account
+            used to prevent repeat votes.
+          </p>
+          <WebsiteRatingStation />
         </>
       ) : null}
     </section>
@@ -1307,17 +1631,27 @@ export default function ExplorePortfolio() {
   const shellRef = useRef<HTMLElement>(null)
   const mountRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<AudioContext | null>(null)
-  const soundscapeRef = useRef<ReturnType<typeof createExploreSoundscape> | null>(null)
+  const soundscapeRef = useRef<ReturnType<
+    typeof createExploreSoundscape
+  > | null>(null)
   const lightingRequestRef = useRef<{ mode: LightMode; version: number }>({
     mode: "Daylight",
     version: 0,
   })
-  const controlsRef = useRef({ forward: false, back: false, left: false, right: false, boost: false })
+  const controlsRef = useRef({
+    forward: false,
+    back: false,
+    left: false,
+    right: false,
+    boost: false,
+  })
   const joystickRef = useRef({ x: 0, y: 0 })
   const joystickKnobRef = useRef<HTMLSpanElement>(null)
   const cameraOrbitRef = useRef(0)
   const cameraOrbitTargetRef = useRef(0)
-  const cameraDragRef = useRef<{ pointerId: number; lastX: number } | null>(null)
+  const cameraDragRef = useRef<{ pointerId: number; lastX: number } | null>(
+    null
+  )
   const nearestRef = useRef<Station | null>(null)
   const activeStationRef = useRef<Station | null>(null)
   const [started, setStarted] = useState(false)
@@ -1327,12 +1661,16 @@ export default function ExplorePortfolio() {
   const [visited, setVisited] = useState<StationId[]>([])
   const [speed, setSpeed] = useState(0)
   const [carPosition, setCarPosition] = useState({ x: 0, z: 12 })
-  const [lighting, setLighting] = useState<{ mode: LightMode; remaining: number }>({
+  const [lighting, setLighting] = useState<{
+    mode: LightMode
+    remaining: number
+  }>({
     mode: "Daylight",
     remaining: LIGHT_PHASE_MS / 1000,
   })
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const canFullscreen = typeof document !== "undefined" && Boolean(document.fullscreenEnabled)
+  const canFullscreen =
+    typeof document !== "undefined" && Boolean(document.fullscreenEnabled)
 
   const resetJoystick = useCallback(() => {
     joystickRef.current = { x: 0, y: 0 }
@@ -1349,9 +1687,11 @@ export default function ExplorePortfolio() {
   }, [])
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    const handleFullscreenChange = () =>
+      setIsFullscreen(Boolean(document.fullscreenElement))
     document.addEventListener("fullscreenchange", handleFullscreenChange)
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [])
 
   const openNearest = useCallback(() => {
@@ -1360,7 +1700,9 @@ export default function ExplorePortfolio() {
     soundscapeRef.current?.playInteraction(true)
     activeStationRef.current = station
     setActiveStation(station)
-    setVisited((current) => current.includes(station.id) ? current : [...current, station.id])
+    setVisited((current) =>
+      current.includes(station.id) ? current : [...current, station.id]
+    )
   }, [])
 
   const closeStation = useCallback(() => {
@@ -1384,7 +1726,8 @@ export default function ExplorePortfolio() {
   }, [])
 
   const toggleLighting = useCallback(() => {
-    const nextMode: LightMode = lighting.mode === "Daylight" ? "Night" : "Daylight"
+    const nextMode: LightMode =
+      lighting.mode === "Daylight" ? "Night" : "Daylight"
     lightingRequestRef.current = {
       mode: nextMode,
       version: lightingRequestRef.current.version + 1,
@@ -1404,7 +1747,7 @@ export default function ExplorePortfolio() {
     scene.background = skyColor
     scene.fog = fog
 
-    const getCameraViewHeight = () => mount.clientWidth < 700 ? 27 : 23
+    const getCameraViewHeight = () => (mount.clientWidth < 700 ? 27 : 23)
     const initialAspect = mount.clientWidth / mount.clientHeight
     const initialViewHeight = getCameraViewHeight()
     const camera = new THREE.OrthographicCamera(
@@ -1415,7 +1758,10 @@ export default function ExplorePortfolio() {
       0.1,
       220
     )
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" })
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     renderer.shadowMap.enabled = true
@@ -1450,8 +1796,16 @@ export default function ExplorePortfolio() {
       starPositions[index * 3 + 1] = 24 + (index % 19) * 2.3
       starPositions[index * 3 + 2] = Math.sin(angle) * radius
     }
-    starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3))
-    const starMaterial = new THREE.PointsMaterial({ color: 0xe8efff, size: 0.42, transparent: true, opacity: 0 })
+    starGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(starPositions, 3)
+    )
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xe8efff,
+      size: 0.42,
+      transparent: true,
+      opacity: 0,
+    })
     scene.add(new THREE.Points(starGeometry, starMaterial))
 
     const oceanGeometry = new THREE.PlaneGeometry(240, 240, 36, 36)
@@ -1608,13 +1962,18 @@ export default function ExplorePortfolio() {
     const natureInteractions: NatureInteraction[] = []
 
     for (let index = 0; index < 56; index += 1) {
-      const angle = (index / 56) * Math.PI * 2 + 0.11 + Math.sin(index * 1.7) * 0.025
+      const angle =
+        (index / 56) * Math.PI * 2 + 0.11 + Math.sin(index * 1.7) * 0.025
       const radius = 52.5 + (index % 5) * 1.25
       const x = Math.cos(angle) * radius
       const z = Math.sin(angle) * radius
       const rock = new THREE.Mesh(
         new THREE.DodecahedronGeometry(0.55 + (index % 6) * 0.14, 0),
-        new THREE.MeshStandardMaterial({ color: index % 2 ? 0x766c59 : 0x8b806a, roughness: 1, flatShading: true })
+        new THREE.MeshStandardMaterial({
+          color: index % 2 ? 0x766c59 : 0x8b806a,
+          roughness: 1,
+          flatShading: true,
+        })
       )
       rock.position.set(x, terrainHeightAt(x, z) + 0.35, z)
       rock.rotation.set(index * 0.31, angle, index * 0.17)
@@ -1657,7 +2016,9 @@ export default function ExplorePortfolio() {
             new THREE.Vector3(size, size * (0.58 + (rockIndex % 3) * 0.1), size)
           )
         )
-        clusterRockColors.push(new THREE.Color((cluster + rockIndex) % 2 ? 0x766c59 : 0x958976))
+        clusterRockColors.push(
+          new THREE.Color((cluster + rockIndex) % 2 ? 0x766c59 : 0x958976)
+        )
         natureInteractions.push({
           x,
           z,
@@ -1670,7 +2031,11 @@ export default function ExplorePortfolio() {
     }
     const clusterRocks = new THREE.InstancedMesh(
       new THREE.DodecahedronGeometry(1, 0),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 1,
+        flatShading: true,
+      }),
       clusterRockTransforms.length
     )
     clusterRockTransforms.forEach((transform, index) => {
@@ -1678,18 +2043,28 @@ export default function ExplorePortfolio() {
       clusterRocks.setColorAt(index, clusterRockColors[index])
     })
     clusterRocks.instanceMatrix.needsUpdate = true
-    if (clusterRocks.instanceColor) clusterRocks.instanceColor.needsUpdate = true
+    if (clusterRocks.instanceColor)
+      clusterRocks.instanceColor.needsUpdate = true
     clusterRocks.castShadow = true
     clusterRocks.receiveShadow = true
     scene.add(clusterRocks)
 
-    const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x393c3d, roughness: 0.96 })
-    const road = new THREE.Mesh(new THREE.RingGeometry(22, 34, 64), roadMaterial)
+    const roadMaterial = new THREE.MeshStandardMaterial({
+      color: 0x393c3d,
+      roughness: 0.96,
+    })
+    const road = new THREE.Mesh(
+      new THREE.RingGeometry(22, 34, 64),
+      roadMaterial
+    )
     road.rotation.x = -Math.PI / 2
     road.position.y = 0.03
     road.receiveShadow = true
     scene.add(road)
-    const crossRoad = new THREE.Mesh(new THREE.PlaneGeometry(10, 72), roadMaterial)
+    const crossRoad = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 72),
+      roadMaterial
+    )
     crossRoad.rotation.x = -Math.PI / 2
     crossRoad.position.y = 0.04
     crossRoad.receiveShadow = true
@@ -1699,24 +2074,40 @@ export default function ExplorePortfolio() {
     crossRoadB.receiveShadow = true
     scene.add(crossRoadB)
 
-    const stationObjects = STATIONS.map((station) => createStation(scene, station))
-    const stationLights = stationObjects.map(({ light }) => light)
-    const rotatingStationLabels = stationObjects.map(({ rotatingLabel }) => rotatingLabel)
-    const stationFloatingIcons = stationObjects.map(({ floatingIcon }) => floatingIcon)
-    const stationFloatingBalls = stationObjects.flatMap(({ floatingBalls }, stationIndex) =>
-      floatingBalls.map((ball) => ({ ...ball, stationIndex }))
+    const stationObjects = STATIONS.map((station) =>
+      createStation(scene, station)
     )
-    const stationLabelMaterials = stationObjects.flatMap(({ rotatingLabel, floatingIcon }) => [
-      rotatingLabel.userData.glowMaterial as THREE.MeshStandardMaterial,
-      ...(floatingIcon.userData.glowMaterials as THREE.MeshStandardMaterial[]),
-    ])
+    const stationLights = stationObjects.map(({ light }) => light)
+    const rotatingStationLabels = stationObjects.map(
+      ({ rotatingLabel }) => rotatingLabel
+    )
+    const stationFloatingIcons = stationObjects.map(
+      ({ floatingIcon }) => floatingIcon
+    )
+    const stationFloatingBalls = stationObjects.flatMap(
+      ({ floatingBalls }, stationIndex) =>
+        floatingBalls.map((ball) => ({ ...ball, stationIndex }))
+    )
+    const stationLabelMaterials = stationObjects.flatMap(
+      ({ rotatingLabel, floatingIcon }) => [
+        rotatingLabel.userData.glowMaterial as THREE.MeshStandardMaterial,
+        ...(floatingIcon.userData
+          .glowMaterials as THREE.MeshStandardMaterial[]),
+      ]
+    )
 
     const center = new THREE.Group()
     addBox(center, [12, 0.7, 12], [0, 0.35, 0], 0xeee8dc)
     addBox(center, [4.5, 1.3, 4.5], [0, 1.35, 0], 0xff5b35, Math.PI / 4)
     const centerLabel = new THREE.Group()
     const centerNameLabel = create3DLabel("DIHAN", 0xd8ad35, 0.29, 0.72, 0.78)
-    const centerPortfolioLabel = create3DLabel("PORTFOLIO", 0xf0c958, 0.158, 0.5, 0.72)
+    const centerPortfolioLabel = create3DLabel(
+      "PORTFOLIO",
+      0xf0c958,
+      0.158,
+      0.5,
+      0.72
+    )
     centerNameLabel.position.y = 1.02
     centerPortfolioLabel.position.y = -0.72
     const avatarTexture = new THREE.TextureLoader().load(portrait)
@@ -1761,30 +2152,38 @@ export default function ExplorePortfolio() {
     car.position.set(0, 0, 12)
     scene.add(car)
 
-    const scatterLeaves = (interaction: NatureInteraction, speed: number, heading: number) => {
+    const scatterLeaves = (
+      interaction: NatureInteraction,
+      speed: number,
+      heading: number
+    ) => {
       if (
         interaction.kind === "mushroom" ||
         interaction.kind === "cactus" ||
         interaction.kind === "rock"
-      ) return
+      )
+        return
       const palette = leafPalette[interaction.kind]
-      const particleCount = interaction.kind === "grass"
-        ? 6 + Math.floor(Math.random() * 5)
-        : 11 + Math.floor(Math.random() * 9)
+      const particleCount =
+        interaction.kind === "grass"
+          ? 6 + Math.floor(Math.random() * 5)
+          : 11 + Math.floor(Math.random() * 9)
       const movementScale = Math.min(1, speed / 14)
       for (let index = 0; index < particleCount; index += 1) {
         const particleIndex = leafCursor % maxLeafParticles
         leafCursor += 1
         const state = leafParticleState[particleIndex]
         const angle = Math.random() * Math.PI * 2
-        const spread = interaction.kind === "grass"
-          ? 0.18 + Math.random() * 0.65
-          : 0.25 + Math.random() * 1.25
-        const sourceHeight = interaction.kind === "bush"
-          ? 0.65 + Math.random() * 1.25
-          : interaction.kind === "grass"
-            ? 0.12 + Math.random() * 0.32
-            : 1.5 + Math.random() * 2.8
+        const spread =
+          interaction.kind === "grass"
+            ? 0.18 + Math.random() * 0.65
+            : 0.25 + Math.random() * 1.25
+        const sourceHeight =
+          interaction.kind === "bush"
+            ? 0.65 + Math.random() * 1.25
+            : interaction.kind === "grass"
+              ? 0.12 + Math.random() * 0.32
+              : 1.5 + Math.random() * 2.8
         leafPositionAttribute.setXYZ(
           particleIndex,
           interaction.x + Math.cos(angle) * Math.random() * 0.8,
@@ -1793,18 +2192,24 @@ export default function ExplorePortfolio() {
         )
         state.velocity.set(
           Math.cos(angle) * spread + Math.sin(heading) * movementScale * 1.2,
-          (interaction.kind === "grass" ? 0.65 : 1.4) + Math.random() * 2.5 + movementScale,
+          (interaction.kind === "grass" ? 0.65 : 1.4) +
+            Math.random() * 2.5 +
+            movementScale,
           Math.sin(angle) * spread + Math.cos(heading) * movementScale * 1.2
         )
-        state.life = interaction.kind === "grass"
-          ? 0.55 + Math.random() * 0.45
-          : 1.15 + Math.random() * 0.9
+        state.life =
+          interaction.kind === "grass"
+            ? 0.55 + Math.random() * 0.45
+            : 1.15 + Math.random() * 0.9
         state.maxLife = state.life
-        const color = new THREE.Color(palette[Math.floor(Math.random() * palette.length)])
+        const color = new THREE.Color(
+          palette[Math.floor(Math.random() * palette.length)]
+        )
         leafColorAttribute.setXYZ(particleIndex, color.r, color.g, color.b)
-        state.baseSize = interaction.kind === "grass"
-          ? 2.2 + Math.random() * 2.4
-          : 3.2 + Math.random() * 3.4
+        state.baseSize =
+          interaction.kind === "grass"
+            ? 2.2 + Math.random() * 2.4
+            : 3.2 + Math.random() * 3.4
         leafSizeAttribute.setX(particleIndex, state.baseSize)
         leafShapeAttribute.setX(particleIndex, 0)
         leafAlphaAttribute.setX(particleIndex, 0.95)
@@ -1817,7 +2222,14 @@ export default function ExplorePortfolio() {
     }
 
     const headlights = [-0.78, 0.78].map((x) => {
-      const light = new THREE.SpotLight(0xe7f2ff, 0, 24, Math.PI / 7, 0.45, 1.25)
+      const light = new THREE.SpotLight(
+        0xe7f2ff,
+        0,
+        24,
+        Math.PI / 7,
+        0.45,
+        1.25
+      )
       light.position.set(x, 1.15, 2)
       light.target.position.set(x, 0.15, 10)
       car.add(light, light.target)
@@ -1858,7 +2270,10 @@ export default function ExplorePortfolio() {
       }
 
       const nature = natureResults
-        .filter((result): result is PromiseFulfilledResult<THREE.Group> => result.status === "fulfilled")
+        .filter(
+          (result): result is PromiseFulfilledResult<THREE.Group> =>
+            result.status === "fulfilled"
+        )
         .map((result) => result.value)
       if (nature.length === 8) {
         normalizeModel(nature[0], 7.5, "height")
@@ -1876,7 +2291,12 @@ export default function ExplorePortfolio() {
           const radius = index % 2 ? 45 : 50
           const x = Math.cos(angle) * radius
           const z = Math.sin(angle) * radius
-          if (STATIONS.some((station) => Math.hypot(x - station.x, z - station.z) < 9)) continue
+          if (
+            STATIONS.some(
+              (station) => Math.hypot(x - station.x, z - station.z) < 9
+            )
+          )
+            continue
           createTree(scene, x, z, 0.8 + (index % 4) * 0.12)
         }
       }
@@ -1891,9 +2311,11 @@ export default function ExplorePortfolio() {
     let lastUiUpdate = 0
     let lastLightingSecond = -1
     let lightingStartedAt = performance.now()
-    let lightingPhaseOffset = lightingRequestRef.current.mode === "Daylight" ? 0 : 1
+    let lightingPhaseOffset =
+      lightingRequestRef.current.mode === "Daylight" ? 0 : 1
     let appliedLightingVersion = lightingRequestRef.current.version
-    let renderedDayFactor = lightingRequestRef.current.mode === "Daylight" ? 1 : 0
+    let renderedDayFactor =
+      lightingRequestRef.current.mode === "Daylight" ? 1 : 0
     const soundscape = audioRef.current
       ? createExploreSoundscape(audioRef.current)
       : null
@@ -1910,7 +2332,22 @@ export default function ExplorePortfolio() {
 
     const handleKey = (event: KeyboardEvent, down: boolean) => {
       const key = event.key.toLowerCase()
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "h", "shift", "e", "enter"].includes(key)) {
+      if (
+        [
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+          "w",
+          "a",
+          "s",
+          "d",
+          "h",
+          "shift",
+          "e",
+          "enter",
+        ].includes(key)
+      ) {
         event.preventDefault()
       }
       if (key === "w" || key === "arrowup") controlsRef.current.forward = down
@@ -1928,7 +2365,13 @@ export default function ExplorePortfolio() {
     const keyDown = (event: KeyboardEvent) => handleKey(event, true)
     const keyUp = (event: KeyboardEvent) => handleKey(event, false)
     const clearControls = () => {
-      controlsRef.current = { forward: false, back: false, left: false, right: false, boost: false }
+      controlsRef.current = {
+        forward: false,
+        back: false,
+        left: false,
+        right: false,
+        boost: false,
+      }
       resetJoystick()
       soundscape?.stopHorn()
     }
@@ -1958,8 +2401,11 @@ export default function ExplorePortfolio() {
       const joystickMagnitude = Math.min(1, Math.hypot(joystick.x, joystick.y))
       const keyboardThrottle = controls.forward ? 1 : controls.back ? -1 : 0
       const throttle = keyboardThrottle || joystickMagnitude
-      const boosting = controls.boost || (!keyboardThrottle && joystickMagnitude > 0.96)
-      const surfaceSpeedFactor = isGreenLandAt(car.position.x, car.position.z) ? 0.85 : 1
+      const boosting =
+        controls.boost || (!keyboardThrottle && joystickMagnitude > 0.96)
+      const surfaceSpeedFactor = isGreenLandAt(car.position.x, car.position.z)
+        ? 0.85
+        : 1
       const maxSpeed = (boosting ? 20 : 13) * surfaceSpeedFactor
       const maxReverseSpeed = 7 * surfaceSpeedFactor
       const acceleration = throttle >= 0 ? throttle * 18 : throttle * 12
@@ -1967,15 +2413,18 @@ export default function ExplorePortfolio() {
       if (Math.abs(throttle) < 0.01) velocity *= Math.pow(0.35, delta)
       velocity = THREE.MathUtils.clamp(velocity, -maxReverseSpeed, maxSpeed)
 
-      const keyboardSteering = (controls.left ? 1 : 0) - (controls.right ? 1 : 0)
+      const keyboardSteering =
+        (controls.left ? 1 : 0) - (controls.right ? 1 : 0)
       let steering = keyboardSteering
       if (!keyboardThrottle && joystickMagnitude > 0.01) {
         const screenForward = -joystick.y
         const cameraAngle = Math.PI / 4 + cameraOrbitRef.current
         const worldX =
-          joystick.x * Math.sin(cameraAngle) - screenForward * Math.cos(cameraAngle)
+          joystick.x * Math.sin(cameraAngle) -
+          screenForward * Math.cos(cameraAngle)
         const worldZ =
-          -joystick.x * Math.cos(cameraAngle) - screenForward * Math.sin(cameraAngle)
+          -joystick.x * Math.cos(cameraAngle) -
+          screenForward * Math.sin(cameraAngle)
         const desiredHeading = Math.atan2(worldX, worldZ)
         const headingDifference = Math.atan2(
           Math.sin(desiredHeading - heading),
@@ -1999,7 +2448,8 @@ export default function ExplorePortfolio() {
         heading,
         velocity
       )
-      if (velocity !== centerApproachSpeed) collisionSpeed = Math.abs(centerApproachSpeed)
+      if (velocity !== centerApproachSpeed)
+        collisionSpeed = Math.abs(centerApproachSpeed)
       for (const station of STATIONS) {
         const stationApproachSpeed = velocity
         velocity = resolveCircularCollision(
@@ -2011,7 +2461,10 @@ export default function ExplorePortfolio() {
           velocity
         )
         if (velocity !== stationApproachSpeed) {
-          collisionSpeed = Math.max(collisionSpeed, Math.abs(stationApproachSpeed))
+          collisionSpeed = Math.max(
+            collisionSpeed,
+            Math.abs(stationApproachSpeed)
+          )
         }
       }
       const radius = Math.hypot(car.position.x, car.position.z)
@@ -2026,10 +2479,12 @@ export default function ExplorePortfolio() {
 
       const nextNatureInteractions = new Set<number>()
       natureInteractions.forEach((interaction, index) => {
-        const touching = Math.hypot(
-          car.position.x - interaction.x,
-          car.position.z - interaction.z
-        ) < interaction.radius + 1.15
+        const touching =
+          Math.hypot(
+            car.position.x - interaction.x,
+            car.position.z - interaction.z
+          ) <
+          interaction.radius + 1.15
         if (!touching) return
         nextNatureInteractions.add(index)
         if (!activeNatureInteractions.has(index) && Math.abs(velocity) > 0.8) {
@@ -2049,30 +2504,42 @@ export default function ExplorePortfolio() {
         const visual = interaction.visual
         const restScale = interaction.restScale
         if (!visual || !restScale || !interaction.impact) return
-        const recoverySpeed = interaction.kind === "mushroom"
-          ? 3.2
-          : interaction.kind === "rock"
-            ? 4.2
-          : interaction.kind === "cactus"
-            ? 2.8
-            : 2
-        interaction.impact = Math.max(0, interaction.impact - delta * recoverySpeed)
-        const wave = Math.sin((1 - interaction.impact) * Math.PI * 5.5) * interaction.impact
-        const swayAmount = interaction.kind === "mushroom"
-          ? 0.24
-          : interaction.kind === "bush"
-            ? 0.19
-            : interaction.kind === "bamboo"
-              ? 0.15
-              : interaction.kind === "rock"
-                ? 0.055
+        const recoverySpeed =
+          interaction.kind === "mushroom"
+            ? 3.2
+            : interaction.kind === "rock"
+              ? 4.2
               : interaction.kind === "cactus"
-                ? 0.085
-                : 0.11
+                ? 2.8
+                : 2
+        interaction.impact = Math.max(
+          0,
+          interaction.impact - delta * recoverySpeed
+        )
+        const wave =
+          Math.sin((1 - interaction.impact) * Math.PI * 5.5) *
+          interaction.impact
+        const swayAmount =
+          interaction.kind === "mushroom"
+            ? 0.24
+            : interaction.kind === "bush"
+              ? 0.19
+              : interaction.kind === "bamboo"
+                ? 0.15
+                : interaction.kind === "rock"
+                  ? 0.055
+                  : interaction.kind === "cactus"
+                    ? 0.085
+                    : 0.11
         const direction = interaction.impactDirection ?? 0
-        visual.rotation.x = (interaction.restRotationX ?? 0) + Math.cos(direction) * wave * swayAmount
-        visual.rotation.z = (interaction.restRotationZ ?? 0) - Math.sin(direction) * wave * swayAmount
-        const squash = Math.abs(wave) * (interaction.kind === "mushroom" ? 0.28 : 0.055)
+        visual.rotation.x =
+          (interaction.restRotationX ?? 0) +
+          Math.cos(direction) * wave * swayAmount
+        visual.rotation.z =
+          (interaction.restRotationZ ?? 0) -
+          Math.sin(direction) * wave * swayAmount
+        const squash =
+          Math.abs(wave) * (interaction.kind === "mushroom" ? 0.28 : 0.055)
         visual.scale.set(
           restScale.x * (1 + squash * 0.45),
           restScale.y * (1 - squash),
@@ -2094,9 +2561,12 @@ export default function ExplorePortfolio() {
           return
         }
 
-        const positionX = leafPositionAttribute.getX(index) + state.velocity.x * delta
-        let positionY = leafPositionAttribute.getY(index) + state.velocity.y * delta
-        const positionZ = leafPositionAttribute.getZ(index) + state.velocity.z * delta
+        const positionX =
+          leafPositionAttribute.getX(index) + state.velocity.x * delta
+        let positionY =
+          leafPositionAttribute.getY(index) + state.velocity.y * delta
+        const positionZ =
+          leafPositionAttribute.getZ(index) + state.velocity.z * delta
         state.velocity.y -= 3.5 * delta
         const airDrag = Math.pow(0.48, delta)
         state.velocity.x *= airDrag
@@ -2111,7 +2581,8 @@ export default function ExplorePortfolio() {
         leafAlphaAttribute.setX(index, Math.min(0.95, state.life / 0.42))
         leafSizeAttribute.setX(
           index,
-          state.baseSize * (0.58 + Math.abs(Math.sin(now * 0.012 + index * 1.7)) * 0.42)
+          state.baseSize *
+            (0.58 + Math.abs(Math.sin(now * 0.012 + index * 1.7)) * 0.42)
         )
       })
       leafPositionAttribute.needsUpdate = true
@@ -2124,11 +2595,18 @@ export default function ExplorePortfolio() {
         Math.min(1, delta * 9)
       )
       const wheels = car.userData.wheels as THREE.Mesh[]
-      wheels.forEach((wheel) => { wheel.rotation.x += velocity * delta * 1.8 })
-      car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, -steering * Math.min(Math.abs(velocity) / 22, 0.08), 0.12)
+      wheels.forEach((wheel) => {
+        wheel.rotation.x += velocity * delta * 1.8
+      })
+      car.rotation.z = THREE.MathUtils.lerp(
+        car.rotation.z,
+        -steering * Math.min(Math.abs(velocity) / 22, 0.08),
+        0.12
+      )
 
       cameraOrbitRef.current +=
-        (cameraOrbitTargetRef.current - cameraOrbitRef.current) * Math.min(1, delta * 9)
+        (cameraOrbitTargetRef.current - cameraOrbitRef.current) *
+        Math.min(1, delta * 9)
       const cameraAngle = Math.PI / 4 + cameraOrbitRef.current
       camera.position.set(
         car.position.x + Math.cos(cameraAngle) * cameraDistance,
@@ -2164,14 +2642,17 @@ export default function ExplorePortfolio() {
       centerAvatar.position.y = 0.38 + Math.sin(now * 0.0013 + 0.8) * 0.07
       centerAvatar.rotation.z = Math.sin(now * 0.0009) * 0.025
 
-      const oceanPositions = oceanGeometry.getAttribute("position") as THREE.BufferAttribute
+      const oceanPositions = oceanGeometry.getAttribute(
+        "position"
+      ) as THREE.BufferAttribute
       const waveTime = now * 0.00055
       for (let index = 0; index < oceanPositions.count; index += 1) {
         const x = oceanPositions.getX(index)
         const y = oceanPositions.getY(index)
         oceanPositions.setZ(
           index,
-          Math.sin(x * 0.12 + waveTime) * 0.1 + Math.cos(y * 0.15 - waveTime * 1.2) * 0.07
+          Math.sin(x * 0.12 + waveTime) * 0.1 +
+            Math.cos(y * 0.15 - waveTime * 1.2) * 0.07
         )
       }
       oceanPositions.needsUpdate = true
@@ -2182,10 +2663,12 @@ export default function ExplorePortfolio() {
         const shoreScale = THREE.MathUtils.lerp(1.075, 0.965, wash)
         const rise = THREE.MathUtils.smoothstep(phase, 0.04, 0.34)
         mesh.scale.setScalar(shoreScale)
-        mesh.position.y = THREE.MathUtils.lerp(-0.72, 0.055, rise)
-          + Math.sin(phase * Math.PI) * 0.018
+        mesh.position.y =
+          THREE.MathUtils.lerp(-0.72, 0.055, rise) +
+          Math.sin(phase * Math.PI) * 0.018
         material.uniforms.uTime.value = now * 0.001
-        material.uniforms.uOpacity.value = Math.pow(Math.sin(phase * Math.PI), 0.85) * 0.72
+        material.uniforms.uOpacity.value =
+          Math.pow(Math.sin(phase * Math.PI), 0.85) * 0.72
       })
 
       const lightingRequest = lightingRequestRef.current
@@ -2196,7 +2679,8 @@ export default function ExplorePortfolio() {
         lastLightingSecond = -1
       }
       const lightingElapsed = now - lightingStartedAt
-      const phaseIndex = Math.floor(lightingElapsed / LIGHT_PHASE_MS) + lightingPhaseOffset
+      const phaseIndex =
+        Math.floor(lightingElapsed / LIGHT_PHASE_MS) + lightingPhaseOffset
       const phaseElapsed = lightingElapsed % LIGHT_PHASE_MS
       const isDayPhase = phaseIndex % 2 === 0
       const transitionStart = LIGHT_PHASE_MS - LIGHT_TRANSITION_MS
@@ -2205,19 +2689,39 @@ export default function ExplorePortfolio() {
         0,
         LIGHT_TRANSITION_MS
       )
-      const targetDayFactor = phaseElapsed < transitionStart
-        ? (isDayPhase ? 1 : 0)
-        : (isDayPhase ? 1 - transitionProgress : transitionProgress)
-      renderedDayFactor = THREE.MathUtils.damp(renderedDayFactor, targetDayFactor, 2.15, delta)
+      const targetDayFactor =
+        phaseElapsed < transitionStart
+          ? isDayPhase
+            ? 1
+            : 0
+          : isDayPhase
+            ? 1 - transitionProgress
+            : transitionProgress
+      renderedDayFactor = THREE.MathUtils.damp(
+        renderedDayFactor,
+        targetDayFactor,
+        2.15,
+        delta
+      )
       const dayFactor = renderedDayFactor
 
       skyColor.copy(nightSky).lerp(daySky, dayFactor)
       fog.color.copy(skyColor)
       renderer.toneMappingExposure = THREE.MathUtils.lerp(0.72, 1.15, dayFactor)
       hemisphere.intensity = THREE.MathUtils.lerp(0.48, 2.2, dayFactor)
-      hemisphere.color.copy(lightColor.copy(nightHemisphereColor).lerp(dayHemisphereColor, dayFactor))
-      oceanMaterial.color.copy(lightColor.copy(nightOceanColor).lerp(dayOceanColor, dayFactor))
-      oceanMaterial.emissiveIntensity = THREE.MathUtils.lerp(0.3, 0.12, dayFactor)
+      hemisphere.color.copy(
+        lightColor
+          .copy(nightHemisphereColor)
+          .lerp(dayHemisphereColor, dayFactor)
+      )
+      oceanMaterial.color.copy(
+        lightColor.copy(nightOceanColor).lerp(dayOceanColor, dayFactor)
+      )
+      oceanMaterial.emissiveIntensity = THREE.MathUtils.lerp(
+        0.3,
+        0.12,
+        dayFactor
+      )
       shoreWaves.forEach(({ material }) => {
         material.uniforms.uColor.value.copy(
           lightColor.copy(nightFoamColor).lerp(dayFoamColor, dayFactor)
@@ -2226,7 +2730,9 @@ export default function ExplorePortfolio() {
       sun.intensity = THREE.MathUtils.lerp(0.04, 4.2, dayFactor)
       moon.intensity = THREE.MathUtils.lerp(1.35, 0, dayFactor)
       starMaterial.opacity = 1 - dayFactor
-      stationLights.forEach((light) => { light.intensity = (1 - dayFactor) * 8 })
+      stationLights.forEach((light) => {
+        light.intensity = (1 - dayFactor) * 8
+      })
       stationLabelMaterials.forEach((material) => {
         material.emissiveIntensity = THREE.MathUtils.lerp(1.45, 0.12, dayFactor)
       })
@@ -2238,7 +2744,9 @@ export default function ExplorePortfolio() {
         material.emissiveIntensity = THREE.MathUtils.lerp(1.85, 0.12, dayFactor)
       })
       centerLabelLight.intensity = (1 - dayFactor) * 13
-      headlights.forEach((light) => { light.intensity = (1 - dayFactor) * 32 })
+      headlights.forEach((light) => {
+        light.intensity = (1 - dayFactor) * 32
+      })
       soundscape?.update(
         dayFactor,
         Math.min(1, Math.abs(velocity) / 20),
@@ -2252,7 +2760,10 @@ export default function ExplorePortfolio() {
         let closest: Station | null = null
         let closestDistance = 8.4
         for (const station of STATIONS) {
-          const distance = Math.hypot(car.position.x - station.x, car.position.z - station.z)
+          const distance = Math.hypot(
+            car.position.x - station.x,
+            car.position.z - station.z
+          )
           if (distance < closestDistance) {
             closest = station
             closestDistance = distance
@@ -2295,7 +2806,9 @@ export default function ExplorePortfolio() {
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose()
-          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material]
           materials.forEach((material) => material.dispose())
         }
         if (object instanceof THREE.Sprite) {
@@ -2393,22 +2906,39 @@ export default function ExplorePortfolio() {
       {!started ? (
         <section className="explore-intro">
           <div className="explore-intro-grid" aria-hidden="true" />
-          <p className="explore-intro-kicker">Dihan&apos;s interactive world / v1.0</p>
-          <h1>Drive through<br /><em>the work.</em></h1>
+          <p className="explore-intro-kicker">
+            Dihan&apos;s interactive world / v1.0
+          </p>
+          <h1>
+            Drive through
+            <br />
+            <em>the work.</em>
+          </h1>
           <p className="explore-intro-copy">
-            An alternate way into my portfolio. Take the car, follow the roads, and stop at each glowing station to uncover the story.
+            An alternate way into my portfolio. Take the car, follow the roads,
+            and stop at each glowing station to uncover the story.
           </p>
           <div className="explore-intro-actions">
             <button type="button" onClick={startExploring}>
               <IconPlayerPlayFilled /> Start exploring
             </button>
-            <a href="./"><IconArrowLeft /> Standard portfolio</a>
+            <a href="./">
+              <IconArrowLeft /> Standard portfolio
+            </a>
           </div>
           <div className="explore-keyboard-hint">
-            <span><kbd>WASD</kbd> or <kbd>ARROWS</kbd> to drive</span>
-            <span><kbd>SHIFT</kbd> to boost</span>
-            <span><kbd>H</kbd> to honk</span>
-            <span><kbd>E</kbd> to explore</span>
+            <span>
+              <kbd>WASD</kbd> or <kbd>ARROWS</kbd> to drive
+            </span>
+            <span>
+              <kbd>SHIFT</kbd> to boost
+            </span>
+            <span>
+              <kbd>H</kbd> to honk
+            </span>
+            <span>
+              <kbd>E</kbd> to explore
+            </span>
           </div>
         </section>
       ) : (
@@ -2431,14 +2961,28 @@ export default function ExplorePortfolio() {
           />
           <header className="explore-hud-top">
             <div className="explore-hud-actions">
-              <a href="./" className="explore-back"><IconArrowLeft /> Exit world</a>
+              <a href="./" className="explore-back">
+                <IconArrowLeft /> Exit world
+              </a>
               {canFullscreen ? (
-                <button className="explore-fullscreen" type="button" onClick={toggleFullscreen} aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+                <button
+                  className="explore-fullscreen"
+                  type="button"
+                  onClick={toggleFullscreen}
+                  aria-label={
+                    isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+                  }
+                >
                   {isFullscreen ? <IconMinimize /> : <IconMaximize />}
-                  <span>{isFullscreen ? "Exit full screen" : "Full screen"}</span>
+                  <span>
+                    {isFullscreen ? "Exit full screen" : "Full screen"}
+                  </span>
                 </button>
               ) : null}
-              <div className="explore-speed"><strong>{speed}</strong><span>KM/H</span></div>
+              <div className="explore-speed">
+                <strong>{speed}</strong>
+                <span>KM/H</span>
+              </div>
             </div>
             <div className="explore-hud-status">
               <button
@@ -2450,54 +2994,103 @@ export default function ExplorePortfolio() {
                 {lighting.mode === "Daylight" ? <IconSun /> : <IconMoonStars />}
                 <span>
                   <strong>{lighting.mode}</strong>
-                  <small>{formatClock(lighting.remaining)} until {lighting.mode === "Daylight" ? "night" : "day"}</small>
+                  <small>
+                    {formatClock(lighting.remaining)} until{" "}
+                    {lighting.mode === "Daylight" ? "night" : "day"}
+                  </small>
                 </span>
               </button>
               <div className="explore-progress">
-                <span>{visited.length} / {STATIONS.length} discovered</span>
-                <div>{STATIONS.map((station) => <i key={station.id} className={visited.includes(station.id) ? "is-visited" : ""} />)}</div>
+                <span>
+                  {visited.length} / {STATIONS.length} discovered
+                </span>
+                <div>
+                  {STATIONS.map((station) => (
+                    <i
+                      key={station.id}
+                      className={
+                        visited.includes(station.id) ? "is-visited" : ""
+                      }
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </header>
 
-          {!loaded ? <div className="explore-loader">Building world…</div> : null}
+          {!loaded ? (
+            <div className="explore-loader">Building world…</div>
+          ) : null}
 
           <aside className="explore-map" aria-label="World map">
-            <span className="explore-map-title"><IconMapPin /> World map</span>
+            <span className="explore-map-title">
+              <IconMapPin /> World map
+            </span>
             <div className="explore-map-field">
               {STATIONS.map((station) => (
                 <i
                   key={station.id}
                   className={visited.includes(station.id) ? "is-visited" : ""}
-                  style={{ left: `${50 + station.x * 1.15}%`, top: `${50 + station.z * 1.15}%` }}
+                  style={{
+                    left: `${50 + station.x * 1.15}%`,
+                    top: `${50 + station.z * 1.15}%`,
+                  }}
                   title={station.label}
                 />
               ))}
-              <b style={{ left: `${50 + carPosition.x * 1.15}%`, top: `${50 + carPosition.z * 1.15}%` }} />
+              <b
+                style={{
+                  left: `${50 + carPosition.x * 1.15}%`,
+                  top: `${50 + carPosition.z * 1.15}%`,
+                }}
+              />
             </div>
           </aside>
 
           {nearest && !activeStation ? (
-            <button className="explore-interact" type="button" onClick={openNearest}>
-              <kbd><span>E</span><IconHandClick /></kbd><span>Explore<br /><strong>{nearest.label}</strong></span>
+            <button
+              className="explore-interact"
+              type="button"
+              onClick={openNearest}
+            >
+              <kbd>
+                <span>E</span>
+                <IconHandClick />
+              </kbd>
+              <span>
+                Explore
+                <br />
+                <strong>{nearest.label}</strong>
+              </span>
             </button>
           ) : null}
 
-          <div className="explore-mobile-controls" aria-label="Driving controls">
+          <div
+            className="explore-mobile-controls"
+            aria-label="Driving controls"
+          >
             <div
               className="explore-mobile-joystick"
               role="application"
               aria-label="Analog driving joystick. Push up to accelerate, down to reverse, and sideways to steer."
               onPointerDown={engageJoystick}
               onPointerMove={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) updateJoystick(event)
+                if (event.currentTarget.hasPointerCapture(event.pointerId))
+                  updateJoystick(event)
               }}
               onPointerUp={releaseJoystick}
               onPointerCancel={releaseJoystick}
               onLostPointerCapture={resetJoystick}
             >
-              <span className="explore-mobile-joystick-ring" aria-hidden="true" />
-              <span ref={joystickKnobRef} className="explore-mobile-joystick-knob" aria-hidden="true" />
+              <span
+                className="explore-mobile-joystick-ring"
+                aria-hidden="true"
+              />
+              <span
+                ref={joystickKnobRef}
+                className="explore-mobile-joystick-knob"
+                aria-hidden="true"
+              />
             </div>
             <button
               className="explore-mobile-horn"
@@ -2522,7 +3115,9 @@ export default function ExplorePortfolio() {
             </button>
           </div>
 
-          {activeStation ? <StationPanel station={activeStation} onClose={closeStation} /> : null}
+          {activeStation ? (
+            <StationPanel station={activeStation} onClose={closeStation} />
+          ) : null}
         </>
       )}
     </main>
