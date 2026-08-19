@@ -397,6 +397,9 @@ function createExploreSoundscape(context: AudioContext) {
   const engine = context.createOscillator()
   const grassGain = context.createGain()
   const grassFilter = context.createBiquadFilter()
+  const hornGain = context.createGain()
+  const hornHighpass = context.createBiquadFilter()
+  const hornLowpass = context.createBiquadFilter()
   const waveLfo = context.createOscillator()
   const waveDepth = context.createGain()
   const slowWaveLfo = context.createOscillator()
@@ -534,6 +537,15 @@ function createExploreSoundscape(context: AudioContext) {
   grassDrive.connect(grassFilter).connect(grassGain).connect(master)
   grassDrive.start()
 
+  hornGain.gain.value = 0.0001
+  hornHighpass.type = "highpass"
+  hornHighpass.frequency.value = 190
+  hornHighpass.Q.value = 0.7
+  hornLowpass.type = "lowpass"
+  hornLowpass.frequency.value = 1_850
+  hornLowpass.Q.value = 1.15
+  hornHighpass.connect(hornLowpass).connect(hornGain).connect(master)
+
   const playBird = () => {
     if (context.state !== "running") return
     const chirpStart = context.currentTime
@@ -614,12 +626,8 @@ function createExploreSoundscape(context: AudioContext) {
   let birdTimer = 0
   let lastCollisionAt = -Infinity
   let hornActive = false
-  let hornSpeechTimer = 0
-  let speechVoices = window.speechSynthesis.getVoices()
-  const refreshSpeechVoices = () => {
-    speechVoices = window.speechSynthesis.getVoices()
-  }
-  window.speechSynthesis.addEventListener("voiceschanged", refreshSpeechVoices)
+  let hornOscillators: OscillatorNode[] = []
+  let hornVibrato: OscillatorNode | null = null
   const lastVegetationAt: Record<NatureInteraction["kind"], number> = {
     grass: -Infinity,
     bush: -Infinity,
@@ -640,52 +648,50 @@ function createExploreSoundscape(context: AudioContext) {
     if (Math.random() > 0.18) playInsect()
   }, 620)
 
-  const speakHireMe = () => {
-    if (window.speechSynthesis.speaking) return
-    const phrase = new SpeechSynthesisUtterance("Hire me!")
-    const englishVoices = speechVoices.filter((voice) =>
-      voice.lang.toLowerCase().startsWith("en")
-    )
-    const preferredMaleVoices = [
-      /google uk english male/i,
-      /microsoft (guy|david|mark)/i,
-      /daniel/i,
-      /alex/i,
-      /aaron/i,
-      /arthur/i,
-      /oliver/i,
-      /thomas/i,
-      /fred/i,
-    ]
-    phrase.voice = preferredMaleVoices.reduce<SpeechSynthesisVoice | null>(
-      (match, pattern) => match ?? englishVoices.find((voice) => pattern.test(voice.name)) ?? null,
-      null
-    ) ?? englishVoices.find((voice) => voice.localService) ?? englishVoices[0] ?? null
-    phrase.volume = 1
-    phrase.rate = 0.96
-    phrase.pitch = 0.88
-    window.speechSynthesis.speak(phrase)
-  }
-
-  const scheduleHornSpeech = () => {
-    window.clearTimeout(hornSpeechTimer)
-    hornSpeechTimer = window.setTimeout(() => {
-      if (!hornActive) return
-      speakHireMe()
-      scheduleHornSpeech()
-    }, 820)
-  }
-
   const startHorn = () => {
     if (hornActive) return
+    if (context.state !== "running") return
     hornActive = true
-    speakHireMe()
-    scheduleHornSpeech()
+
+    const hornStart = context.currentTime
+    const vibrato = context.createOscillator()
+    const vibratoDepth = context.createGain()
+    vibrato.type = "sine"
+    vibrato.frequency.value = 6.2
+    vibratoDepth.gain.value = 1.8
+    vibrato.connect(vibratoDepth)
+
+    hornOscillators = [370, 466.16].map((frequency, index) => {
+      const oscillator = context.createOscillator()
+      const voiceGain = context.createGain()
+      oscillator.type = index === 0 ? "sawtooth" : "square"
+      oscillator.frequency.value = frequency
+      oscillator.detune.value = index === 0 ? -3 : 3
+      voiceGain.gain.value = index === 0 ? 0.72 : 0.28
+      vibratoDepth.connect(oscillator.frequency)
+      oscillator.connect(voiceGain).connect(hornHighpass)
+      oscillator.start(hornStart)
+      return oscillator
+    })
+
+    hornVibrato = vibrato
+    vibrato.start(hornStart)
+    hornGain.gain.cancelScheduledValues(hornStart)
+    hornGain.gain.setValueAtTime(0.0001, hornStart)
+    hornGain.gain.exponentialRampToValueAtTime(0.095, hornStart + 0.028)
   }
 
   const stopHorn = () => {
+    if (!hornActive) return
     hornActive = false
-    window.clearTimeout(hornSpeechTimer)
+    const hornStop = context.currentTime
+    hornGain.gain.cancelScheduledValues(hornStop)
+    hornGain.gain.setValueAtTime(Math.max(0.0001, hornGain.gain.value), hornStop)
+    hornGain.gain.exponentialRampToValueAtTime(0.0001, hornStop + 0.09)
+    hornOscillators.forEach((oscillator) => oscillator.stop(hornStop + 0.1))
+    hornVibrato?.stop(hornStop + 0.1)
+    hornOscillators = []
+    hornVibrato = null
   }
 
   return {
@@ -843,8 +849,6 @@ function createExploreSoundscape(context: AudioContext) {
     },
     stop() {
       stopHorn()
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.removeEventListener("voiceschanged", refreshSpeechVoices)
       window.clearTimeout(birdTimer)
       window.clearInterval(insectTimer)
       const stopAt = context.currentTime + 0.45

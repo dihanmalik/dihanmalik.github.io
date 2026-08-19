@@ -109,25 +109,55 @@
   color: var(--muted);
 }
 
-.manual-arcade-dialog {
+html body [data-slot="dialog-content"].manual-arcade-dialog {
+  position: fixed !important;
   inset: 0 !important;
   top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   left: 0 !important;
-  width: 100vw !important;
-  height: 100dvh !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: none !important;
   max-width: none !important;
-  translate: none !important;
+  margin: 0 !important;
+  translate: 0 0 !important;
   transform: none !important;
   overflow: hidden;
   gap: 0;
+  border: 0;
   border-radius: 0;
   padding: 0;
   background: #000;
   color: #fff;
   box-shadow: none;
+  overscroll-behavior: none;
+}
+
+@supports (height: 100dvh) {
+  html body [data-slot="dialog-content"].manual-arcade-dialog {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+}
+
+.manual-arcade-dialog > .space-game-shell,
+.manual-arcade-dialog > .manual-game-section--modal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
 }
 
 .manual-arcade-dialog > [data-slot="dialog-close"] {
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: max(0.5rem, env(safe-area-inset-right));
+  z-index: 20;
   color: #fff;
   background: #000;
   border: 1px solid #fff;
