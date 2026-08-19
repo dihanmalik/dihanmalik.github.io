@@ -3,8 +3,8 @@
   --manual-paper: var(--background);
   --manual-faint: color-mix(in oklab, var(--foreground) 8%, transparent);
   --manual-mid: color-mix(in oklab, var(--foreground) 22%, transparent);
-  --manual-accent: oklch(0.72 0.18 42);
-  --manual-accent-ink: oklch(0.19 0.04 38);
+  --manual-accent: var(--portfolio-accent);
+  --manual-accent-ink: var(--portfolio-accent-foreground);
   --manual-note: oklch(0.9 0.14 96);
   min-height: 100vh;
   overflow: clip;

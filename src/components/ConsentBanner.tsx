@@ -61,7 +61,7 @@ export function ConsentBanner() {
             No crumbs, thanks
           </Button>
           <Button
-            variant="outline"
+            variant="accent"
             onClick={() => choose("granted")}
             disabled={!audienceType}
           >
