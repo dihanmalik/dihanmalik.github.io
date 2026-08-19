@@ -13,6 +13,7 @@ import ExploreRoute from "./explore/ExploreRoute.tsx"
 import { preloadExploreRoute } from "./explore/preloadExplore.ts"
 import FieldManualPortfolio from "./field-manual-portfolio/FieldManualPortfolio.tsx"
 import { ArcadeGameRoute } from "./field-manual-portfolio/game/ArcadeGameRoute.tsx"
+import { preloadArcadeGames } from "./field-manual-portfolio/game/preloadArcadeGames.ts"
 
 const restoredRoute = sessionStorage.getItem("portfolio-route")
 if (restoredRoute) {
@@ -31,12 +32,19 @@ const arcadeGame = arcadeGameMatch?.[1] as
 
 if (!isExploreRoute && !arcadeGame && !isOwnerDeviceRoute) {
   const preload = () => {
+    const preloadRoutes = () => {
+      void Promise.all([preloadExploreRoute(), preloadArcadeGames()]).catch(
+        () => {
+          // A later route navigation will retry any chunk the browser missed.
+        }
+      )
+    }
     if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(() => void preloadExploreRoute(), {
+      window.requestIdleCallback(preloadRoutes, {
         timeout: 2500,
       })
     } else {
-      window.setTimeout(() => void preloadExploreRoute(), 1000)
+      window.setTimeout(preloadRoutes, 1000)
     }
   }
   if (document.readyState === "complete") preload()

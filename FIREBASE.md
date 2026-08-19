@@ -10,6 +10,9 @@ changed at `/privacy`.
 ## Collections
 
 - `siteStats/general` stores the unique browser visitor count.
+- `siteStats/ratings` stores the public rating count and total. The UI displays
+  a friendly 5.0 starting score through the first 10 ratings, then switches to
+  the actual average beginning with rating 11.
 - `visitors/{anonymousAuthUid}` stores first/last visit and visit count.
 - `playerProgress/{uid_gameId}` stores totals and the current best score.
 - `playerProgress/{uid_gameId}/runs/{runId}` stores each completed replay.

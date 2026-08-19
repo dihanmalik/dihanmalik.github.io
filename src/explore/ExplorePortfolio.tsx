@@ -26,7 +26,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
 import resume from "@/assets/CV_2026.pdf"
 import portrait from "@/assets/me4.png"
-import { WebsiteRatingForm } from "@/components/WebsiteRating"
+import {
+  WebsiteRatingForm,
+  WebsiteRatingSummary,
+} from "@/components/WebsiteRating"
 import {
   educationEntries,
   optimizationNotes,
@@ -1327,10 +1330,13 @@ function createCar() {
 
 function WebsiteRatingStation() {
   return (
-    <WebsiteRatingForm
-      className="explore-rating-form"
-      statusClassName="explore-rating-status"
-    />
+    <>
+      <WebsiteRatingSummary />
+      <WebsiteRatingForm
+        className="explore-rating-form"
+        statusClassName="explore-rating-status"
+      />
+    </>
   )
 }
 
@@ -1363,9 +1369,9 @@ function StationPanel({
           <IconSparkles className="explore-panel-icon" />
           <h2 id="station-title">Built to be used, tuned to be fast.</h2>
           <p>
-            I&apos;m Dihan. I build frontend systems for products with real
-            operational weight—and I stay around to make them faster, clearer,
-            and easier to evolve.
+            I&apos;m Nahid Abdulmalik, you can call me Dihan. I build frontend
+            systems for products with real operational weight—and I stay around
+            to make them faster, clearer, and easier to evolve.
           </p>
           <img
             className="explore-panel-portrait"

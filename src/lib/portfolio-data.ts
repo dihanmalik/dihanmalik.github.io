@@ -8,7 +8,6 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   where,
   type Timestamp,
 } from "firebase/firestore"
@@ -19,6 +18,7 @@ export const OWNER_DEVICE_KEY = "portfolio-owner-device"
 export const TRACKING_CONSENT_KEY = "portfolio-tracking-consent"
 export const TRACKING_CONSENT_EVENT = "portfolio-tracking-consent-change"
 const VISIT_SESSION_KEY = "portfolio-visit-recorded"
+export const WEBSITE_RATING_EVENT = "portfolio-website-rating-change"
 
 export const GAME_IDS = ["void-patrol", "night-shift"] as const
 export type GameId = (typeof GAME_IDS)[number]
@@ -44,6 +44,12 @@ export type VisitorRecord = {
   firstSeenAt: Timestamp
   lastSeenAt: Timestamp
   visitCount: number
+}
+
+export type WebsiteRatingSummary = {
+  ratingCount: number
+  ratingTotal: number
+  displayRating: number
 }
 
 export function isOwnerDevice() {
@@ -254,16 +260,46 @@ export async function submitWebsiteRating(
 ) {
   const user = await getAnonymousUser()
   const ratingRef = doc(firestore, "websiteRatings", user.uid)
-  if ((await getDoc(ratingRef)).exists()) {
-    throw new Error("This browser has already submitted a rating.")
-  }
+  const statsRef = doc(firestore, "siteStats", "ratings")
 
-  await setDoc(ratingRef, {
-    uid: user.uid,
-    rating,
-    audienceType,
-    createdAt: serverTimestamp(),
+  await runTransaction(firestore, async (transaction) => {
+    const [existingRating, stats] = await Promise.all([
+      transaction.get(ratingRef),
+      transaction.get(statsRef),
+    ])
+    if (existingRating.exists()) {
+      throw new Error("This browser has already submitted a rating.")
+    }
+
+    const ratingCount = Number(stats.data()?.ratingCount ?? 0)
+    const ratingTotal = Number(stats.data()?.ratingTotal ?? 0)
+    transaction.set(ratingRef, {
+      uid: user.uid,
+      rating,
+      audienceType,
+      createdAt: serverTimestamp(),
+    })
+    transaction.set(statsRef, {
+      ratingCount: ratingCount + 1,
+      ratingTotal: ratingTotal + rating,
+      updatedAt: serverTimestamp(),
+    })
   })
+
+  window.dispatchEvent(new CustomEvent(WEBSITE_RATING_EVENT))
+}
+
+export async function getWebsiteRatingSummary(): Promise<WebsiteRatingSummary> {
+  const snapshot = await getDoc(doc(firestore, "siteStats", "ratings"))
+  const ratingCount = Number(snapshot.data()?.ratingCount ?? 0)
+  const ratingTotal = Number(snapshot.data()?.ratingTotal ?? 0)
+  const actualAverage = ratingCount > 0 ? ratingTotal / ratingCount : 5
+
+  return {
+    ratingCount,
+    ratingTotal,
+    displayRating: ratingCount > 10 ? actualAverage : 5,
+  }
 }
 
 export function trackInBackground(operation: Promise<unknown>) {

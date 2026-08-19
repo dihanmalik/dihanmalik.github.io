@@ -261,8 +261,9 @@ function Introduction() {
               In brief
             </p>
             <p className="max-w-2xl text-lg leading-relaxed sm:text-xl">
-              I&apos;m Dihan. I build frontend systems for products with real
-              operational weight—and I stay around to{" "}
+              I&apos;m Nahid Abdulmalik, you can call me Dihan. I build frontend
+              systems for products with real operational weight—and I stay
+              around to{" "}
               <span className="manual-highlight font-semibold">
                 make them faster
               </span>

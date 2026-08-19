@@ -63,6 +63,47 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /siteStats/ratings {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          "ratingCount",
+          "ratingTotal",
+          "updatedAt"
+        ])
+        && request.resource.data.ratingCount == 1
+        && request.resource.data.ratingTotal
+          == getAfter(
+            /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+          ).data.rating
+        && request.resource.data.updatedAt == request.time
+        && !exists(
+          /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+        );
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "ratingCount",
+          "ratingTotal",
+          "updatedAt"
+        ])
+        && request.resource.data.ratingCount == resource.data.ratingCount + 1
+        && request.resource.data.ratingTotal
+          == resource.data.ratingTotal + getAfter(
+            /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+          ).data.rating
+        && request.resource.data.updatedAt == request.time
+        && !exists(
+          /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+        )
+        && existsAfter(
+          /databases/$(database)/documents/websiteRatings/$(request.auth.uid)
+        );
+      allow delete: if false;
+    }
+
     match /visitors/{uid} {
       allow create: if owns(uid)
         && request.resource.data.keys().hasOnly([
@@ -254,7 +295,37 @@ service cloud.firestore {
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5
         && validAudience(request.resource.data.audienceType)
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && existsAfter(
+          /databases/$(database)/documents/siteStats/ratings
+        )
+        && (
+          (
+            !exists(/databases/$(database)/documents/siteStats/ratings)
+            && getAfter(
+              /databases/$(database)/documents/siteStats/ratings
+            ).data.ratingCount == 1
+            && getAfter(
+              /databases/$(database)/documents/siteStats/ratings
+            ).data.ratingTotal == request.resource.data.rating
+          )
+          ||
+          (
+            exists(/databases/$(database)/documents/siteStats/ratings)
+            && getAfter(
+              /databases/$(database)/documents/siteStats/ratings
+            ).data.ratingCount
+              == get(
+                /databases/$(database)/documents/siteStats/ratings
+              ).data.ratingCount + 1
+            && getAfter(
+              /databases/$(database)/documents/siteStats/ratings
+            ).data.ratingTotal
+              == get(
+                /databases/$(database)/documents/siteStats/ratings
+              ).data.ratingTotal + request.resource.data.rating
+          )
+        );
       allow update, delete: if false;
     }
 

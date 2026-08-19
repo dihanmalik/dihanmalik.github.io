@@ -88,6 +88,7 @@ type DogCompanion = {
   facingY: number
   nextAttackAt: number
   attackingUntil: number
+  nextBarkAt: number
 }
 
 type GameEngine = {
@@ -179,7 +180,13 @@ const GAME_COLORS = {
 
 type ZombieSound =
   | "swing"
-  | "shot"
+  | "shotgun"
+  | "bazooka"
+  | "laser"
+  | "rocketLaunch"
+  | "rocketExplosion"
+  | "dogBark"
+  | "dogBite"
   | "hit"
   | "destroy"
   | "playerHit"
@@ -189,13 +196,261 @@ type ZombieSound =
   | "gameover"
 const lastBloodSoundAt = new WeakMap<AudioContext, number>()
 
+function playZombieTone(
+  context: AudioContext,
+  {
+    from,
+    to,
+    duration,
+    volume,
+    wave,
+    delay = 0,
+  }: {
+    from: number
+    to: number
+    duration: number
+    volume: number
+    wave: OscillatorType
+    delay?: number
+  }
+) {
+  const oscillator = context.createOscillator()
+  const gain = context.createGain()
+  const start = context.currentTime + delay
+  oscillator.type = wave
+  oscillator.frequency.setValueAtTime(from, start)
+  oscillator.frequency.exponentialRampToValueAtTime(to, start + duration)
+  gain.gain.setValueAtTime(volume, start)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  oscillator.connect(gain).connect(context.destination)
+  oscillator.start(start)
+  oscillator.stop(start + duration + 0.01)
+}
+
+function playZombieNoise(
+  context: AudioContext,
+  {
+    duration,
+    volume,
+    from,
+    to,
+    filterType = "lowpass",
+    delay = 0,
+  }: {
+    duration: number
+    volume: number
+    from: number
+    to: number
+    filterType?: BiquadFilterType
+    delay?: number
+  }
+) {
+  const start = context.currentTime + delay
+  const noiseBuffer = context.createBuffer(
+    1,
+    Math.ceil(context.sampleRate * duration),
+    context.sampleRate
+  )
+  const samples = noiseBuffer.getChannelData(0)
+  for (let index = 0; index < samples.length; index += 1) {
+    const progress = index / samples.length
+    samples[index] = (Math.random() * 2 - 1) * Math.pow(1 - progress, 1.8)
+  }
+
+  const source = context.createBufferSource()
+  const filter = context.createBiquadFilter()
+  const gain = context.createGain()
+  source.buffer = noiseBuffer
+  filter.type = filterType
+  filter.frequency.setValueAtTime(from, start)
+  filter.frequency.exponentialRampToValueAtTime(to, start + duration)
+  filter.Q.value = filterType === "bandpass" ? 1.8 : 0.8
+  gain.gain.setValueAtTime(volume, start)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  source.connect(filter).connect(gain).connect(context.destination)
+  source.start(start)
+  source.stop(start + duration + 0.01)
+}
+
+function playDetailedZombieSound(
+  context: AudioContext,
+  sound: Extract<
+    ZombieSound,
+    | "shotgun"
+    | "bazooka"
+    | "laser"
+    | "rocketLaunch"
+    | "rocketExplosion"
+    | "dogBark"
+    | "dogBite"
+  >
+) {
+  if (sound === "shotgun") {
+    playZombieNoise(context, {
+      duration: 0.34,
+      volume: 0.085,
+      from: 3_200,
+      to: 180,
+    })
+    playZombieNoise(context, {
+      duration: 0.075,
+      volume: 0.045,
+      from: 7_000,
+      to: 1_100,
+      filterType: "highpass",
+    })
+    playZombieTone(context, {
+      from: 115,
+      to: 42,
+      duration: 0.28,
+      volume: 0.065,
+      wave: "triangle",
+    })
+    return
+  }
+
+  if (sound === "bazooka") {
+    playZombieNoise(context, {
+      duration: 0.48,
+      volume: 0.08,
+      from: 1_400,
+      to: 75,
+    })
+    playZombieNoise(context, {
+      duration: 0.11,
+      volume: 0.04,
+      from: 4_800,
+      to: 500,
+      filterType: "highpass",
+    })
+    playZombieTone(context, {
+      from: 82,
+      to: 27,
+      duration: 0.52,
+      volume: 0.085,
+      wave: "sine",
+    })
+    return
+  }
+
+  if (sound === "laser") {
+    playZombieTone(context, {
+      from: 1_450,
+      to: 210,
+      duration: 0.16,
+      volume: 0.026,
+      wave: "sawtooth",
+    })
+    playZombieTone(context, {
+      from: 2_200,
+      to: 620,
+      duration: 0.11,
+      volume: 0.018,
+      wave: "sine",
+    })
+    return
+  }
+
+  if (sound === "rocketLaunch") {
+    playZombieNoise(context, {
+      duration: 0.32,
+      volume: 0.04,
+      from: 1_800,
+      to: 240,
+      filterType: "bandpass",
+    })
+    playZombieTone(context, {
+      from: 155,
+      to: 58,
+      duration: 0.34,
+      volume: 0.035,
+      wave: "sawtooth",
+    })
+    return
+  }
+
+  if (sound === "rocketExplosion") {
+    playZombieNoise(context, {
+      duration: 0.58,
+      volume: 0.09,
+      from: 1_500,
+      to: 65,
+    })
+    playZombieTone(context, {
+      from: 68,
+      to: 24,
+      duration: 0.5,
+      volume: 0.075,
+      wave: "sine",
+    })
+    return
+  }
+
+  if (sound === "dogBark") {
+    ;[0, 0.12].forEach((delay, index) => {
+      playZombieTone(context, {
+        from: index === 0 ? 260 : 215,
+        to: index === 0 ? 92 : 76,
+        duration: index === 0 ? 0.13 : 0.1,
+        volume: index === 0 ? 0.052 : 0.038,
+        wave: "sawtooth",
+        delay,
+      })
+      playZombieNoise(context, {
+        duration: index === 0 ? 0.14 : 0.1,
+        volume: 0.026,
+        from: 1_600,
+        to: 420,
+        filterType: "bandpass",
+        delay,
+      })
+    })
+    return
+  }
+
+  playZombieNoise(context, {
+    duration: 0.1,
+    volume: 0.04,
+    from: 1_800,
+    to: 180,
+  })
+  playZombieTone(context, {
+    from: 190,
+    to: 62,
+    duration: 0.085,
+    volume: 0.035,
+    wave: "triangle",
+  })
+}
+
 function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
   if (!context || context.state !== "running") return
+  if (
+    sound === "shotgun" ||
+    sound === "bazooka" ||
+    sound === "laser" ||
+    sound === "rocketLaunch" ||
+    sound === "rocketExplosion" ||
+    sound === "dogBark" ||
+    sound === "dogBite"
+  ) {
+    playDetailedZombieSound(context, sound)
+    return
+  }
   const oscillator = context.createOscillator()
   const gain = context.createGain()
   const start = context.currentTime
   const settings: Record<
-    ZombieSound,
+    Exclude<
+      ZombieSound,
+      | "shotgun"
+      | "bazooka"
+      | "laser"
+      | "rocketLaunch"
+      | "rocketExplosion"
+      | "dogBark"
+      | "dogBite"
+    >,
     {
       from: number
       to: number
@@ -211,7 +466,6 @@ function playZombieSound(context: AudioContext | null, sound: ZombieSound) {
       volume: 0.018,
       wave: "triangle",
     },
-    shot: { from: 330, to: 95, duration: 0.11, volume: 0.026, wave: "square" },
     hit: { from: 125, to: 58, duration: 0.12, volume: 0.035, wave: "square" },
     destroy: {
       from: 210,
@@ -1256,7 +1510,7 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
     engine.weapon.ammo -= 1
     engine.nextAttackAt =
       now + (kind === "shotgun" ? 520 : kind === "laser" ? 180 : 720)
-    playZombieSound(audioRef.current, "shot")
+    playZombieSound(audioRef.current, kind)
     triggerZombieHaptic(kind === "bazooka" ? 35 : 14)
     if (engine.weapon.ammo <= 0) {
       engine.weapon = { kind: "bat", ammo: 0 }
@@ -1525,8 +1779,9 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
             facingY: 0,
             nextAttackAt: now,
             attackingUntil: 0,
+            nextBarkAt: now,
           }
-          playZombieSound(audioRef.current, "pickup")
+          playZombieSound(audioRef.current, "dogBark")
         } else {
           engine.weapon = { kind: pickup.kind, ammo: WEAPON_AMMO[pickup.kind] }
           setLoadout({ ...engine.weapon })
@@ -1572,7 +1827,7 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
               hitZombieIds: [],
             })
           })
-          playZombieSound(audioRef.current, "shot")
+          playZombieSound(audioRef.current, "rocketLaunch")
         }
       }
 
@@ -1613,6 +1868,11 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
         dog.x += dog.facingX * dogStep
         dog.y += dog.facingY * dogStep
 
+        if (chasing && now >= dog.nextBarkAt) {
+          dog.nextBarkAt = now + 2_600 + Math.random() * 2_400
+          playZombieSound(audioRef.current, "dogBark")
+        }
+
         if (nearestZombie && zombieDistance < 15 && now >= dog.nextAttackAt) {
           dog.nextAttackAt = now + 720
           dog.attackingUntil = now + 170
@@ -1627,7 +1887,7 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
             GAME_COLORS.hit
           )
           scatterBlood(engine, nearestZombie.x, nearestZombie.y, now, 7, 23)
-          playZombieSound(audioRef.current, "hit")
+          playZombieSound(audioRef.current, "dogBite")
         }
       }
 
@@ -1676,6 +1936,7 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
             engine.shakeUntil = now + 190
             engine.shakeStrength = 5
             projectile.expired = true
+            playZombieSound(audioRef.current, "rocketExplosion")
           } else {
             hit.health -= projectile.damage
             hit.hitFlashUntil =
@@ -1708,7 +1969,9 @@ export function ZombieBatGame({ modal = false }: { modal?: boolean }) {
           } else if (projectile.kind !== "rocket") {
             projectile.expired = true
           }
-          playZombieSound(audioRef.current, "hit")
+          if (projectile.kind !== "rocket") {
+            playZombieSound(audioRef.current, "hit")
+          }
         }
         if (
           projectile.x < -20 ||

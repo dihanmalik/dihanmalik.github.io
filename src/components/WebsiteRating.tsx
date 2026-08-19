@@ -6,6 +6,7 @@ import {
   IconMessageStar,
   IconSend,
   IconSparkles,
+  IconStar,
   IconStarFilled,
   IconUser,
 } from "@tabler/icons-react"
@@ -29,9 +30,12 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
+  getWebsiteRatingSummary,
   hasSubmittedRating,
   submitWebsiteRating,
+  WEBSITE_RATING_EVENT,
   type AudienceType,
+  type WebsiteRatingSummary as RatingSummary,
 } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
@@ -47,6 +51,68 @@ const ratingMessages = [
   "This genuinely landed well",
   "Portfolio high-five unlocked!",
 ] as const
+
+function useWebsiteRatingSummary() {
+  const [summary, setSummary] = useState<RatingSummary>({
+    ratingCount: 0,
+    ratingTotal: 0,
+    displayRating: 5,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      void getWebsiteRatingSummary()
+        .then((nextSummary) => {
+          if (!cancelled) setSummary(nextSummary)
+        })
+        .catch(() => {
+          // Keep the friendly starting score when the summary is unavailable.
+        })
+    }
+    load()
+    window.addEventListener(WEBSITE_RATING_EVENT, load)
+    return () => {
+      cancelled = true
+      window.removeEventListener(WEBSITE_RATING_EVENT, load)
+    }
+  }, [])
+
+  return summary
+}
+
+function WebsiteRatingSummaryView({ summary }: { summary: RatingSummary }) {
+  const filledStars = Math.round(summary.displayRating)
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/80 p-4 shadow-sm">
+      <div className="flex items-center gap-1" aria-hidden="true">
+        {[1, 2, 3, 4, 5].map((star) =>
+          star <= filledStars ? (
+            <IconStarFilled key={star} className="text-primary" />
+          ) : (
+            <IconStar key={star} className="text-muted-foreground" />
+          )
+        )}
+      </div>
+      <div className="text-right">
+        <strong className="block text-lg">
+          {summary.displayRating.toFixed(1)} / 5
+        </strong>
+        <span className="text-xs text-muted-foreground">
+          {summary.ratingCount > 10
+            ? `From ${summary.ratingCount.toLocaleString()} kind ratings`
+            : "Our cheerful starting score"}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export function WebsiteRatingSummary() {
+  const summary = useWebsiteRatingSummary()
+  return <WebsiteRatingSummaryView summary={summary} />
+}
 
 export function WebsiteRatingForm({
   className,
@@ -230,13 +296,15 @@ export function WebsiteRatingForm({
 }
 
 export function WebsiteRatingDialog() {
+  const summary = useWebsiteRatingSummary()
+
   return (
     <Dialog>
       <DialogTrigger
         render={<Button variant="outline" size="lg" className="rounded-full" />}
       >
         <IconMessageStar data-icon="inline-start" />
-        Rate this website
+        Rate this website · {summary.displayRating.toFixed(1)} ★
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] overflow-y-auto p-0 sm:max-w-lg">
         <div className="relative overflow-hidden border-b bg-muted/50 p-6">
@@ -259,6 +327,7 @@ export function WebsiteRatingDialog() {
               Tap a few stars and tell me what brought you here. No essay, no
               name, and definitely no awkward follow-up email.
             </DialogDescription>
+            <WebsiteRatingSummaryView summary={summary} />
           </DialogHeader>
         </div>
         <div className="p-6">
