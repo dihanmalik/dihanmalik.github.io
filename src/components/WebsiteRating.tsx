@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { FormEvent } from "react"
+import type { ComponentProps, FormEvent } from "react"
 import {
   IconBriefcase,
   IconHeartFilled,
@@ -300,8 +300,10 @@ export function WebsiteRatingForm({
 
 export function WebsiteRatingDialog({
   triggerClassName,
+  triggerVariant = "outline",
 }: {
   triggerClassName?: string
+  triggerVariant?: ComponentProps<typeof Button>["variant"]
 }) {
   const summary = useWebsiteRatingSummary()
 
@@ -310,7 +312,7 @@ export function WebsiteRatingDialog({
       <DialogTrigger
         render={
           <Button
-            variant="outline"
+            variant={triggerVariant}
             size="lg"
             className={cn("rounded-full", triggerClassName)}
           />

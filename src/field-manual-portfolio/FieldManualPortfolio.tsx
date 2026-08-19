@@ -886,14 +886,17 @@ function Contact() {
             href={resume}
             download="Nahid-Abdulmalik-Resume.pdf"
             className={cn(
-              buttonVariants({ variant: "secondary", size: "lg" }),
+              buttonVariants({ size: "lg" }),
               "manual-contact-action"
             )}
           >
             <IconDownload data-icon="inline-start" />
             Download my résumé
           </a>
-          <WebsiteRatingDialog triggerClassName="manual-contact-action manual-contact-action--rating" />
+          <WebsiteRatingDialog
+            triggerVariant="default"
+            triggerClassName="manual-contact-action"
+          />
         </div>
 
         <div className="mt-7 flex flex-wrap items-center gap-5 text-sm">

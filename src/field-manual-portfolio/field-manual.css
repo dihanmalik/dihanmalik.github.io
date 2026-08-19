@@ -298,10 +298,6 @@
     background-color 180ms ease;
 }
 
-.manual-contact-action--rating {
-  border-color: color-mix(in srgb, var(--manual-accent) 65%, var(--border));
-}
-
 .manual-contact-action:hover {
   transform: translate(-2px, -2px);
   box-shadow: 8px 8px 0
