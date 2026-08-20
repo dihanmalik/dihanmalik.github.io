@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   IconBrandGoogle,
+  IconChevronLeft,
+  IconChevronRight,
   IconRefresh,
   IconShieldLock,
   IconStarFilled,
@@ -39,6 +41,77 @@ const gameNames: Record<GameId, string> = {
 
 type NicknameByUid = ReadonlyMap<string, string>
 
+const TABLE_PAGE_SIZE = 10
+
+function useTablePagination<T>(records: T[]) {
+  const [page, setPage] = useState(1)
+  const pageCount = Math.max(1, Math.ceil(records.length / TABLE_PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const startIndex = (currentPage - 1) * TABLE_PAGE_SIZE
+
+  return {
+    page: currentPage,
+    pageCount,
+    pageRecords: records.slice(startIndex, startIndex + TABLE_PAGE_SIZE),
+    setPage,
+    startIndex,
+  }
+}
+
+function TablePagination({
+  page,
+  pageCount,
+  recordCount,
+  startIndex,
+  onPageChange,
+}: {
+  page: number
+  pageCount: number
+  recordCount: number
+  startIndex: number
+  onPageChange: (page: number) => void
+}) {
+  if (recordCount <= TABLE_PAGE_SIZE) return null
+
+  const endIndex = Math.min(startIndex + TABLE_PAGE_SIZE, recordCount)
+
+  return (
+    <nav
+      aria-label="Table pagination"
+      className="flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2"
+    >
+      <p className="text-xs text-muted-foreground">
+        {startIndex + 1}–{endIndex} of {recordCount.toLocaleString()}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page === 1}
+          aria-label="Go to previous page"
+        >
+          <IconChevronLeft data-icon="inline-start" />
+          Previous
+        </Button>
+        <p className="min-w-20 text-center text-xs" aria-live="polite">
+          Page {page} of {pageCount}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page === pageCount}
+          aria-label="Go to next page"
+        >
+          Next
+          <IconChevronRight data-icon="inline-end" />
+        </Button>
+      </div>
+    </nav>
+  )
+}
+
 function formatDate(
   timestamp:
     | VisitorRecord["lastSeenAt"]
@@ -59,50 +132,62 @@ function RatingTable({
   ratings: WebsiteRatingRecord[]
   nicknamesByUid: NicknameByUid
 }) {
+  const { page, pageCount, pageRecords, setPage, startIndex } =
+    useTablePagination(ratings)
+
   return (
-    <div className="overflow-x-auto border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Anonymous browser ID</TableHead>
-            <TableHead>Rating</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Submitted</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ratings.map((rating) => (
-            <TableRow key={rating.uid}>
-              <TableCell className="font-medium">
-                {rating.name ?? nicknamesByUid.get(rating.uid) ?? "—"}
-              </TableCell>
-              <TableCell className="max-w-64 font-mono text-xs break-all">
-                {rating.uid}
-              </TableCell>
-              <TableCell>
-                <span className="inline-flex items-center gap-2 font-medium">
-                  <IconStarFilled aria-hidden="true" />
-                  {rating.rating} / 5
-                </span>
-              </TableCell>
-              <TableCell className="capitalize">
-                {rating.audienceType}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(rating.createdAt)}
-              </TableCell>
-            </TableRow>
-          ))}
-          {ratings.length === 0 ? (
+    <div className="border">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="py-10 text-center">
-                No website ratings yet.
-              </TableCell>
+              <TableHead>Name</TableHead>
+              <TableHead>Anonymous browser ID</TableHead>
+              <TableHead>Rating</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Submitted</TableHead>
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {pageRecords.map((rating) => (
+              <TableRow key={rating.uid}>
+                <TableCell className="font-medium">
+                  {rating.name ?? nicknamesByUid.get(rating.uid) ?? "—"}
+                </TableCell>
+                <TableCell className="max-w-45 overflow-hidden font-mono text-xs">
+                  {rating.uid.slice(0, 8) + "…" + rating.uid.slice(-4)}
+                </TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center gap-2 font-medium">
+                    <IconStarFilled aria-hidden="true" />
+                    {rating.rating} / 5
+                  </span>
+                </TableCell>
+                <TableCell className="capitalize">
+                  {rating.audienceType}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(rating.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {ratings.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center">
+                  No website ratings yet.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
+      <TablePagination
+        page={page}
+        pageCount={pageCount}
+        recordCount={ratings.length}
+        startIndex={startIndex}
+        onPageChange={setPage}
+      />
     </div>
   )
 }
@@ -125,127 +210,153 @@ function VisitorTable({
   visitors: VisitorRecord[]
   nicknamesByUid: NicknameByUid
 }) {
+  const { page, pageCount, pageRecords, setPage, startIndex } =
+    useTablePagination(visitors)
+
   return (
-    <div className="overflow-x-auto border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Leaderboard name</TableHead>
-            <TableHead>Anonymous browser ID</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>First path</TableHead>
-            <TableHead>Last path</TableHead>
-            <TableHead className="text-right">Visits</TableHead>
-            <TableHead className="text-right">Latest stay</TableHead>
-            <TableHead className="text-right">Total time</TableHead>
-            <TableHead className="text-right">First seen</TableHead>
-            <TableHead className="text-right">Last seen</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visitors.map((visitor) => (
-            <TableRow key={visitor.uid}>
-              <TableCell className="font-medium">
-                {nicknamesByUid.get(visitor.uid) ?? "—"}
-              </TableCell>
-              <TableCell className="max-w-64 font-mono text-xs break-all">
-                {visitor.uid}
-              </TableCell>
-              <TableCell className="capitalize">
-                {visitor.audienceType ?? "—"}
-              </TableCell>
-              <TableCell className="max-w-64 break-all">
-                {visitor.firstPath}
-              </TableCell>
-              <TableCell className="max-w-64 break-all">
-                {visitor.lastPath}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {visitor.visitCount.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right whitespace-nowrap">
-                {formatDuration(visitor.lastVisitDurationSeconds)}
-              </TableCell>
-              <TableCell className="text-right whitespace-nowrap">
-                {formatDuration(visitor.totalDurationSeconds)}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(visitor.firstSeenAt)}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(visitor.lastSeenAt)}
-              </TableCell>
-            </TableRow>
-          ))}
-          {visitors.length === 0 ? (
+    <div className="border">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={10} className="py-10 text-center">
-                No visitor records yet.
-              </TableCell>
+              <TableHead>Leaderboard name</TableHead>
+              <TableHead>Anonymous browser ID</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>First path</TableHead>
+              <TableHead>Last path</TableHead>
+              <TableHead className="text-right">Visits</TableHead>
+              <TableHead className="text-right">Latest stay</TableHead>
+              <TableHead className="text-right">Total time</TableHead>
+              <TableHead className="text-right">First seen</TableHead>
+              <TableHead className="text-right">Last seen</TableHead>
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {pageRecords.map((visitor) => (
+              <TableRow key={visitor.uid}>
+                <TableCell className="font-medium">
+                  {nicknamesByUid.get(visitor.uid) ?? "—"}
+                </TableCell>
+                <TableCell className="max-w-64 font-mono text-xs break-all">
+                  {visitor.uid.slice(0, 8) + "…" + visitor.uid.slice(-4)}
+                </TableCell>
+                <TableCell className="capitalize">
+                  {visitor.audienceType ?? "—"}
+                </TableCell>
+                <TableCell className="max-w-45 overflow-hidden break-all text-ellipsis whitespace-nowrap">
+                  {visitor.firstPath}
+                </TableCell>
+                <TableCell className="max-w-45 overflow-hidden break-all text-ellipsis whitespace-nowrap">
+                  {visitor.lastPath}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {visitor.visitCount.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {formatDuration(visitor.lastVisitDurationSeconds)}
+                </TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {formatDuration(visitor.totalDurationSeconds)}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(visitor.firstSeenAt)}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(visitor.lastSeenAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {visitors.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="py-10 text-center">
+                  No visitor records yet.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
+      <TablePagination
+        page={page}
+        pageCount={pageCount}
+        recordCount={visitors.length}
+        startIndex={startIndex}
+        onPageChange={setPage}
+      />
     </div>
   )
 }
 
 function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
+  const { page, pageCount, pageRecords, setPage, startIndex } =
+    useTablePagination(entries)
+
   return (
-    <div className="overflow-x-auto border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>Player</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Anonymous browser ID</TableHead>
-            <TableHead className="text-right">Best</TableHead>
-            <TableHead className="text-right">Latest</TableHead>
-            <TableHead className="text-right">Submissions</TableHead>
-            <TableHead className="text-right">Best recorded</TableHead>
-            <TableHead className="text-right">Last updated</TableHead>
-            <TableHead className="text-right">Joined</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry, index) => (
-            <TableRow key={entry.uid}>
-              <TableCell>{index + 1}</TableCell>
-              <TableCell className="font-medium">{entry.nickname}</TableCell>
-              <TableCell className="capitalize">{entry.audienceType}</TableCell>
-              <TableCell className="max-w-64 font-mono text-xs break-all">
-                {entry.uid}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {entry.bestScore.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {entry.latestScore.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {entry.submissions.toLocaleString()}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(entry.bestScoreAt)}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(entry.updatedAt)}
-              </TableCell>
-              <TableCell className="text-right text-xs whitespace-nowrap">
-                {formatDate(entry.createdAt)}
-              </TableCell>
-            </TableRow>
-          ))}
-          {entries.length === 0 ? (
+    <div className="border">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={10} className="py-10 text-center">
-                No leaderboard entries yet.
-              </TableCell>
+              <TableHead className="w-12">#</TableHead>
+              <TableHead>Player</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Anonymous browser ID</TableHead>
+              <TableHead className="text-right">Best</TableHead>
+              <TableHead className="text-right">Latest</TableHead>
+              <TableHead className="text-right">Submissions</TableHead>
+              <TableHead className="text-right">Best recorded</TableHead>
+              <TableHead className="text-right">Last updated</TableHead>
+              <TableHead className="text-right">Joined</TableHead>
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {pageRecords.map((entry, index) => (
+              <TableRow key={entry.uid}>
+                <TableCell>{startIndex + index + 1}</TableCell>
+                <TableCell className="font-medium">{entry.nickname}</TableCell>
+                <TableCell className="capitalize">
+                  {entry.audienceType}
+                </TableCell>
+                <TableCell className="max-w-64 font-mono text-xs break-all">
+                  {entry.uid.slice(0, 8) + "…" + entry.uid.slice(-4)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {entry.bestScore.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {entry.latestScore.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {entry.submissions.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(entry.bestScoreAt)}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(entry.updatedAt)}
+                </TableCell>
+                <TableCell className="text-right text-xs whitespace-nowrap">
+                  {formatDate(entry.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {entries.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="py-10 text-center">
+                  No leaderboard entries yet.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
+      <TablePagination
+        page={page}
+        pageCount={pageCount}
+        recordCount={entries.length}
+        startIndex={startIndex}
+        onPageChange={setPage}
+      />
     </div>
   )
 }
