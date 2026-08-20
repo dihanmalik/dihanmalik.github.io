@@ -1388,13 +1388,16 @@ function createPlayBall() {
   const rollingVisual = new THREE.Group()
   squashVisual.add(rollingVisual)
   ball.add(squashVisual)
+  const shellMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff7438,
+    emissive: 0xff4d1f,
+    emissiveIntensity: 0.04,
+    roughness: 0.48,
+    metalness: 0.04,
+  })
   const shell = new THREE.Mesh(
     new THREE.SphereGeometry(PLAY_BALL_RADIUS, 32, 24),
-    new THREE.MeshStandardMaterial({
-      color: 0xff7438,
-      roughness: 0.48,
-      metalness: 0.04,
-    })
+    shellMaterial
   )
   shell.castShadow = true
   shell.receiveShadow = true
@@ -1424,6 +1427,11 @@ function createPlayBall() {
 
   ball.userData.squashVisual = squashVisual
   ball.userData.rollingVisual = rollingVisual
+  ball.userData.glowMaterial = shellMaterial
+  const glowLight = new THREE.PointLight(0xff6b35, 0, 13, 1.8)
+  glowLight.position.y = 0.4
+  ball.add(glowLight)
+  ball.userData.glowLight = glowLight
 
   return ball
 }
@@ -1442,24 +1450,36 @@ function createPlayHoop() {
       roughness: 0.58,
     })
   )
+  const ringMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff6b35,
+    emissive: 0xff4d1f,
+    emissiveIntensity: 0.12,
+    roughness: 0.38,
+  })
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(PLAY_HOOP_RADIUS, PLAY_HOOP_TUBE_RADIUS, 12, 72),
-    new THREE.MeshStandardMaterial({
-      color: 0xff6b35,
-      emissive: 0xff4d1f,
-      emissiveIntensity: 1.1,
-      roughness: 0.38,
-    })
+    ringMaterial
   )
   outline.castShadow = true
   ring.castShadow = true
   hoop.add(outline, ring)
 
-  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffd166 })
-  for (let index = 0; index < 4; index += 1) {
-    const angle = (index / 4) * Math.PI * 2
+  const markerColors = [
+    0xffd166, 0x5eead4, 0xf472b6, 0xbfff78, 0xc4b5fd, 0xff7438,
+  ]
+  const markerMaterials: THREE.MeshStandardMaterial[] = []
+  for (let index = 0; index < 8; index += 1) {
+    const angle = (index / 8) * Math.PI * 2
+    const markerColor = markerColors[index % markerColors.length]
+    const markerMaterial = new THREE.MeshStandardMaterial({
+      color: markerColor,
+      emissive: markerColor,
+      emissiveIntensity: 0.08,
+      roughness: 0.3,
+    })
+    markerMaterials.push(markerMaterial)
     const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18, 10, 8),
+      new THREE.SphereGeometry(0.22, 10, 8),
       markerMaterial
     )
     marker.position.set(
@@ -1469,6 +1489,12 @@ function createPlayHoop() {
     )
     hoop.add(marker)
   }
+
+  const glowLight = new THREE.PointLight(0xff6b35, 0, 18, 1.65)
+  hoop.add(glowLight)
+  hoop.userData.glowMaterial = ringMaterial
+  hoop.userData.glowLight = glowLight
+  hoop.userData.markerMaterials = markerMaterials
 
   return hoop
 }
@@ -2466,6 +2492,9 @@ export default function ExplorePortfolio() {
     scene.add(playBall)
     const playBallSquashVisual = playBall.userData.squashVisual as THREE.Group
     const playBallRollingVisual = playBall.userData.rollingVisual as THREE.Group
+    const playBallGlowMaterial = playBall.userData
+      .glowMaterial as THREE.MeshStandardMaterial
+    const playBallGlowLight = playBall.userData.glowLight as THREE.PointLight
     const playBallVelocity = new THREE.Vector3(0, 0, 0)
     const playBallRotationAxis = new THREE.Vector3()
     const playBallScreenPosition = new THREE.Vector3()
@@ -2475,6 +2504,11 @@ export default function ExplorePortfolio() {
 
     const playHoop = createPlayHoop()
     scene.add(playHoop)
+    const playHoopGlowMaterial = playHoop.userData
+      .glowMaterial as THREE.MeshStandardMaterial
+    const playHoopGlowLight = playHoop.userData.glowLight as THREE.PointLight
+    const playHoopMarkerMaterials = playHoop.userData
+      .markerMaterials as THREE.MeshStandardMaterial[]
     let playHoopNormalX = 0
     let playHoopNormalZ = 1
     let previousPlayHoopSide = 0
@@ -3461,6 +3495,28 @@ export default function ExplorePortfolio() {
       moon.intensity = THREE.MathUtils.lerp(1.35, 0, dayFactor)
       starMaterial.opacity = 1 - dayFactor
       const nightFactor = Math.pow(1 - dayFactor, 1.35)
+      playBallGlowMaterial.emissiveIntensity = THREE.MathUtils.lerp(
+        0.04,
+        2.1,
+        nightFactor
+      )
+      playBallGlowLight.intensity = nightFactor * 7
+      playHoopGlowMaterial.emissiveIntensity = THREE.MathUtils.lerp(
+        0.12,
+        2.4,
+        nightFactor
+      )
+      const hoopLightPulse =
+        0.45 + Math.pow(0.5 + 0.5 * Math.sin(now * 0.006), 4) * 0.55
+      playHoopGlowLight.color.setHSL((now * 0.00009) % 1, 0.92, 0.58)
+      playHoopGlowLight.intensity = nightFactor * (7 + hoopLightPulse * 7)
+      playHoopMarkerMaterials.forEach((material, index) => {
+        const markerPulse = Math.pow(
+          0.5 + 0.5 * Math.sin(now * 0.0065 + index * 1.43),
+          5
+        )
+        material.emissiveIntensity = nightFactor * (0.28 + markerPulse * 4.2)
+      })
       fireflyMaterial.opacity = nightFactor
       fireflyHaloMaterial.opacity = nightFactor * 0.72
       if (nightFactor > 0.005) {
