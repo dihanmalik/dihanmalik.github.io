@@ -44,6 +44,11 @@ export function ConsentBanner() {
             No ads, no device fingerprint, and no IP address added to my
             database. Your games work either way.
           </p>
+          <p className="text-sm leading-relaxed text-foreground">
+            <strong>Saved anonymously by default.</strong> Your visit data is
+            linked to a random browser ID—not your name, email, IP address, or
+            device fingerprint.
+          </p>
         </div>
       </div>
       <AudienceTypePicker

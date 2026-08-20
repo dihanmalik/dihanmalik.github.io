@@ -15,6 +15,7 @@ import {
   IconCopy,
   IconDownload,
   IconMail,
+  IconMenu2,
   IconPlus,
   IconSteeringWheel,
 } from "@tabler/icons-react"
@@ -27,6 +28,14 @@ import type { RotatingTextRef } from "@/components/RotatingText"
 import { WebsiteRatingDialog } from "@/components/WebsiteRating"
 import { useTheme } from "@/components/theme-provider"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
 import { isOwnerDevice } from "@/lib/portfolio-data"
@@ -142,14 +151,10 @@ function useArcadeReturnScroll() {
   }, [])
 }
 
-function scrollToManualSection(
-  event: ReactMouseEvent<HTMLAnchorElement>,
-  sectionId: string
-) {
+function scrollToManualSectionId(sectionId: string) {
   const section = document.getElementById(sectionId)
   if (!section) return
 
-  event.preventDefault()
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
   ).matches
@@ -161,6 +166,14 @@ function scrollToManualSection(
   if (window.location.hash !== `#${sectionId}`) {
     window.history.pushState(null, "", `#${sectionId}`)
   }
+}
+
+function scrollToManualSection(
+  event: ReactMouseEvent<HTMLAnchorElement>,
+  sectionId: string
+) {
+  event.preventDefault()
+  scrollToManualSectionId(sectionId)
 }
 
 function useScrollReveals() {
@@ -294,8 +307,13 @@ function FieldManualThemeToggle({ className }: { className?: string }) {
   )
 }
 
-function Sidebar({ ownerDevice }: { ownerDevice: boolean }) {
-  const activeSection = useActiveManualSection()
+function Sidebar({
+  ownerDevice,
+  activeSection,
+}: {
+  ownerDevice: boolean
+  activeSection: string
+}) {
   const visibleNavItems = navItems.filter(
     ([, , href]) => href !== "#owner-dashboard" || ownerDevice
   )
@@ -373,6 +391,105 @@ function Sidebar({ ownerDevice }: { ownerDevice: boolean }) {
         </div>
       </div>
     </aside>
+  )
+}
+
+function MobileNavigation({
+  ownerDevice,
+  activeSection,
+}: {
+  ownerDevice: boolean
+  activeSection: string
+}) {
+  const [open, setOpen] = useState(false)
+  const visibleNavItems = navItems.filter(
+    ([, , href]) => href !== "#owner-dashboard" || ownerDevice
+  )
+  const currentLabel =
+    visibleNavItems.find(([, , href]) => href === `#${activeSection}`)?.[1] ??
+    "Introduction"
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <header className="manual-mobile-nav">
+        <a
+          href="#introduction"
+          className="manual-mobile-brand"
+          onClick={(event) => scrollToManualSection(event, "introduction")}
+          aria-label="Return to introduction"
+        >
+          NA/10
+        </a>
+        <div className="manual-mobile-location" aria-live="polite">
+          <span>Now viewing</span>
+          <strong>{currentLabel}</strong>
+        </div>
+        <div className="manual-mobile-actions">
+          <FieldManualThemeToggle />
+          <DialogTrigger
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="manual-mobile-menu-trigger rounded-full"
+              />
+            }
+          >
+            <IconMenu2 />
+            <span className="sr-only">Open navigation</span>
+          </DialogTrigger>
+        </div>
+      </header>
+
+      <DialogContent className="manual-mobile-menu top-auto right-0 bottom-0 left-0 max-h-[92svh] max-w-none translate-x-0 translate-y-0 gap-0 overflow-y-auto rounded-t-3xl rounded-b-none border-x-0 border-b-0 p-0 sm:max-w-none lg:hidden">
+        <DialogHeader className="manual-mobile-menu-header">
+          <DialogTitle>Where would you like to go?</DialogTitle>
+          <DialogDescription>
+            Jump to any part of the field manual.
+          </DialogDescription>
+        </DialogHeader>
+
+        <nav className="manual-mobile-menu-list" aria-label="Mobile page index">
+          {visibleNavItems.map(([number, label, href]) => {
+            const sectionId = href.startsWith("#") ? href.slice(1) : null
+            const isActive = sectionId === activeSection
+
+            return (
+              <a
+                key={`${number}-${label}`}
+                href={href}
+                aria-current={isActive ? "location" : undefined}
+                className={cn(
+                  "manual-mobile-menu-link",
+                  isActive && "is-active"
+                )}
+                onClick={(event) => {
+                  if (sectionId) {
+                    event.preventDefault()
+                    setOpen(false)
+                    window.requestAnimationFrame(() =>
+                      scrollToManualSectionId(sectionId)
+                    )
+                    return
+                  }
+                  setOpen(false)
+                }}
+              >
+                <span>{number}</span>
+                <strong>{label}</strong>
+                {href.startsWith("/") ? <IconArrowUpRight /> : null}
+              </a>
+            )
+          })}
+        </nav>
+
+        <div className="manual-mobile-menu-footer">
+          <span>Senior frontend developer</span>
+          <span>Full-stack TypeScript developer</span>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -1007,12 +1124,17 @@ export default function FieldManualPortfolio() {
   useScrollReveals()
   usePageInteractionHaptics()
   const ownerDevice = isOwnerDevice()
+  const activeSection = useActiveManualSection()
 
   return (
     <div className="field-manual selection:bg-foreground selection:text-background">
       <div className="manual-page">
+        <MobileNavigation
+          ownerDevice={ownerDevice}
+          activeSection={activeSection}
+        />
         <div className="manual-grid">
-          <Sidebar ownerDevice={ownerDevice} />
+          <Sidebar ownerDevice={ownerDevice} activeSection={activeSection} />
           <main>
             <Introduction />
             <Optimization />

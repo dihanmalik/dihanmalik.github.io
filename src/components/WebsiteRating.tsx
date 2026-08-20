@@ -290,8 +290,9 @@ export function WebsiteRatingForm({
             disabled={saving}
           />
           <FieldDescription>
-            Totally optional—leave this blank to keep your rating anonymous.
-            Your browser ID, not your name, prevents repeat ratings.
+            <strong>No name means anonymous.</strong> Leave this blank and your
+            rating is saved without a name. Your random browser ID, not your
+            identity, prevents repeat ratings.
           </FieldDescription>
         </Field>
 

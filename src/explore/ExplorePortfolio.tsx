@@ -117,6 +117,23 @@ const DRIVABLE_RADIUS = ISLAND_RADIUS - 1
 const STATION_COLLISION_RADIUS = 7
 const CENTER_STAGE_COLLISION_RADIUS = 9
 const COLLISION_BOUNCE = 0.38
+const PLAY_BALL_RADIUS = 2.15
+const PLAY_BALL_MASS = 0.55
+const CAR_EFFECTIVE_MASS = 4.5
+const CAR_COLLISION_RADIUS = 1.7
+const CAR_COLLISION_CENTER_HEIGHT = 1.35
+const BALL_RESTITUTION = 0.74
+const BALL_ROLLING_RETENTION_PER_SECOND = 0.72
+const BALL_EDGE_MIN_REBOUND_SPEED = 4.8
+const BALL_EDGE_MAX_REBOUND_SPEED = 7.2
+const PLAY_HOOP_RADIUS = 5
+const PLAY_HOOP_TUBE_RADIUS = 0.34
+const PLAY_HOOP_HEIGHT = 4
+const PLAY_HOOP_CLEARANCE =
+  PLAY_HOOP_RADIUS - PLAY_HOOP_TUBE_RADIUS - PLAY_BALL_RADIUS
+const MINIMAP_POSITION_SCALE = 0.82
+const PLAY_BALL_SPAWN = { x: 4.8, z: 12 }
+const PLAY_HOOP_FALLBACK = { x: 0, z: 52 }
 
 function normalizeModel(
   model: THREE.Object3D,
@@ -316,6 +333,43 @@ function placeNature(scene: THREE.Scene, assets: THREE.Group[]) {
     scene.add(shrub)
     addInteraction(shrubX, shrubZ, 1.8, "bush", shrub)
   }
+
+  const innerPlantingPattern = [
+    { x: 8.2, z: 10.5, kind: "bush" },
+    { x: 12.7, z: 8.3, kind: "cactus" },
+    { x: 16, z: 9.3, kind: "bush" },
+    { x: 9, z: 15.8, kind: "cactus" },
+    { x: 13.4, z: 13.5, kind: "bush" },
+    { x: 16.2, z: 12.2, kind: "bush" },
+  ] as const
+  const innerQuadrants = [
+    { x: 1, z: 1 },
+    { x: -1, z: 1 },
+    { x: -1, z: -1 },
+    { x: 1, z: -1 },
+  ]
+
+  innerQuadrants.forEach((quadrant, quadrantIndex) => {
+    innerPlantingPattern.forEach((planting, plantingIndex) => {
+      const x = planting.x * quadrant.x
+      const z = planting.z * quadrant.z
+      const source = planting.kind === "bush" ? bush : cactus
+      const plant = source.clone()
+      plant.position.set(x, terrainHeightAt(x, z), z)
+      plant.rotation.y = quadrantIndex * 1.31 + plantingIndex * 0.77
+      plant.scale.multiplyScalar(
+        0.7 + ((quadrantIndex + plantingIndex) % 4) * 0.08
+      )
+      scene.add(plant)
+      addInteraction(
+        x,
+        z,
+        planting.kind === "bush" ? 1.8 : 1.55,
+        planting.kind,
+        plant
+      )
+    })
+  })
 
   for (let index = 0; index < 30; index += 1) {
     const angle = index * 2.399
@@ -1328,6 +1382,97 @@ function createCar() {
   return car
 }
 
+function createPlayBall() {
+  const ball = new THREE.Group()
+  const squashVisual = new THREE.Group()
+  const rollingVisual = new THREE.Group()
+  squashVisual.add(rollingVisual)
+  ball.add(squashVisual)
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(PLAY_BALL_RADIUS, 32, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0xff7438,
+      roughness: 0.48,
+      metalness: 0.04,
+    })
+  )
+  shell.castShadow = true
+  shell.receiveShadow = true
+  rollingVisual.add(shell)
+
+  const seamGeometry = new THREE.TorusGeometry(
+    PLAY_BALL_RADIUS * 0.985,
+    0.055,
+    8,
+    64
+  )
+  const seamMaterial = new THREE.MeshStandardMaterial({
+    color: 0x472018,
+    roughness: 0.72,
+  })
+  const seamRotations = [
+    new THREE.Euler(0, 0, 0),
+    new THREE.Euler(Math.PI / 2, 0, 0),
+    new THREE.Euler(0, Math.PI / 2, 0),
+  ]
+  seamRotations.forEach((rotation) => {
+    const seam = new THREE.Mesh(seamGeometry, seamMaterial)
+    seam.rotation.copy(rotation)
+    seam.castShadow = true
+    rollingVisual.add(seam)
+  })
+
+  ball.userData.squashVisual = squashVisual
+  ball.userData.rollingVisual = rollingVisual
+
+  return ball
+}
+
+function createPlayHoop() {
+  const hoop = new THREE.Group()
+  const outline = new THREE.Mesh(
+    new THREE.TorusGeometry(
+      PLAY_HOOP_RADIUS,
+      PLAY_HOOP_TUBE_RADIUS + 0.13,
+      12,
+      72
+    ),
+    new THREE.MeshStandardMaterial({
+      color: 0x171715,
+      roughness: 0.58,
+    })
+  )
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(PLAY_HOOP_RADIUS, PLAY_HOOP_TUBE_RADIUS, 12, 72),
+    new THREE.MeshStandardMaterial({
+      color: 0xff6b35,
+      emissive: 0xff4d1f,
+      emissiveIntensity: 1.1,
+      roughness: 0.38,
+    })
+  )
+  outline.castShadow = true
+  ring.castShadow = true
+  hoop.add(outline, ring)
+
+  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffd166 })
+  for (let index = 0; index < 4; index += 1) {
+    const angle = (index / 4) * Math.PI * 2
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 10, 8),
+      markerMaterial
+    )
+    marker.position.set(
+      Math.cos(angle) * PLAY_HOOP_RADIUS,
+      Math.sin(angle) * PLAY_HOOP_RADIUS,
+      0.42
+    )
+    hoop.add(marker)
+  }
+
+  return hoop
+}
+
 function WebsiteRatingStation() {
   return (
     <>
@@ -1671,6 +1816,16 @@ export default function ExplorePortfolio() {
   const [visited, setVisited] = useState<StationId[]>([])
   const [speed, setSpeed] = useState(0)
   const [carPosition, setCarPosition] = useState({ x: 0, z: 12 })
+  const [ballPosition, setBallPosition] = useState(PLAY_BALL_SPAWN)
+  const [hoopPosition, setHoopPosition] = useState(PLAY_HOOP_FALLBACK)
+  const [hoopCount, setHoopCount] = useState(0)
+  const [ballTracker, setBallTracker] = useState({
+    offscreen: false,
+    left: 50,
+    top: 50,
+    angle: 0,
+    distance: 0,
+  })
   const [lighting, setLighting] = useState<{
     mode: LightMode
     remaining: number
@@ -1971,6 +2126,146 @@ export default function ExplorePortfolio() {
     let leafCursor = 0
     const natureInteractions: NatureInteraction[] = []
 
+    const maxFireflies = 240
+    const fireflyPositions = new Float32Array(maxFireflies * 3)
+    const fireflyColors = new Float32Array(maxFireflies * 3)
+    const fireflyPhases = new Float32Array(maxFireflies)
+    const fireflyBlinkSpeeds = new Float32Array(maxFireflies)
+    fireflyPositions.fill(-100)
+    const fireflyGeometry = new THREE.BufferGeometry()
+    const fireflyPositionAttribute = new THREE.BufferAttribute(
+      fireflyPositions,
+      3
+    )
+    const fireflyColorAttribute = new THREE.BufferAttribute(fireflyColors, 3)
+    fireflyGeometry.setAttribute("position", fireflyPositionAttribute)
+    fireflyGeometry.setAttribute("color", fireflyColorAttribute)
+    fireflyGeometry.setDrawRange(0, 0)
+    const fireflyCanvas = document.createElement("canvas")
+    fireflyCanvas.width = 64
+    fireflyCanvas.height = 64
+    const fireflyContext = fireflyCanvas.getContext("2d")
+    if (fireflyContext) {
+      const glow = fireflyContext.createRadialGradient(32, 32, 1, 32, 32, 32)
+      glow.addColorStop(0, "rgba(255, 255, 220, 1)")
+      glow.addColorStop(0.1, "rgba(255, 246, 130, 1)")
+      glow.addColorStop(0.3, "rgba(220, 255, 112, 0.95)")
+      glow.addColorStop(0.62, "rgba(190, 255, 88, 0.48)")
+      glow.addColorStop(0.86, "rgba(170, 255, 76, 0.12)")
+      glow.addColorStop(1, "rgba(160, 255, 72, 0)")
+      fireflyContext.fillStyle = glow
+      fireflyContext.fillRect(0, 0, 64, 64)
+    }
+    const fireflyTexture = new THREE.CanvasTexture(fireflyCanvas)
+    fireflyTexture.colorSpace = THREE.SRGBColorSpace
+    const fireflyMaterial = new THREE.PointsMaterial({
+      map: fireflyTexture,
+      size: 3,
+      sizeAttenuation: true,
+      opacity: 0,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    })
+    const fireflyHaloMaterial = new THREE.PointsMaterial({
+      map: fireflyTexture,
+      size: 10,
+      sizeAttenuation: true,
+      opacity: 0,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    })
+    const fireflyHaloPoints = new THREE.Points(
+      fireflyGeometry,
+      fireflyHaloMaterial
+    )
+    fireflyHaloPoints.frustumCulled = false
+    fireflyHaloPoints.renderOrder = 3
+    const fireflyPoints = new THREE.Points(fireflyGeometry, fireflyMaterial)
+    fireflyPoints.frustumCulled = false
+    fireflyPoints.renderOrder = 4
+    scene.add(fireflyHaloPoints, fireflyPoints)
+    const fireflyState: Array<{
+      anchorX: number
+      anchorZ: number
+      baseY: number
+      orbitRadius: number
+      phase: number
+      speed: number
+      sway: number
+      color: THREE.Color
+      blinkBurstDuration: number
+      blinkBurstInterval: number
+      blinkBurstOffset: number
+      fastBlinkSpeed: number
+    }> = []
+    let fireflySeed = 7_913
+    const fireflyRandom = () => {
+      fireflySeed = (fireflySeed * 16_807) % 2_147_483_647
+      return (fireflySeed - 1) / 2_147_483_646
+    }
+    const seedFireflies = (interactions: NatureInteraction[]) => {
+      const palette = [new THREE.Color(0xfff49a), new THREE.Color(0xbfff78)]
+      let treeIndex = 0
+      let bushIndex = 0
+
+      interactions.forEach((interaction) => {
+        if (interaction.kind !== "tree" && interaction.kind !== "bush") return
+        const isTree = interaction.kind === "tree"
+        const groveIndex = isTree ? treeIndex++ : bushIndex++
+        const selected = isTree ? groveIndex % 2 === 0 : groveIndex % 3 === 0
+        if (!selected) return
+
+        const count = isTree ? 7 : 6
+        for (
+          let particle = 0;
+          particle < count && fireflyState.length < maxFireflies;
+          particle += 1
+        ) {
+          const index = fireflyState.length
+          const phase = fireflyRandom() * Math.PI * 2
+          const orbitRadius = isTree
+            ? 2 + fireflyRandom() * 2.3
+            : 1.05 + fireflyRandom() * 1.35
+          const baseY = isTree
+            ? 1.3 + fireflyRandom() * 4.8
+            : 0.7 + fireflyRandom() * 1.65
+          const color = palette[fireflyRandom() > 0.35 ? 0 : 1]
+          fireflyState.push({
+            anchorX: interaction.x,
+            anchorZ: interaction.z,
+            baseY,
+            orbitRadius,
+            phase,
+            speed: 0.24 + fireflyRandom() * 0.64,
+            sway: 0.28 + fireflyRandom() * 0.52,
+            color,
+            blinkBurstDuration: 0.8 + fireflyRandom() * 0.9,
+            blinkBurstInterval: 5 + fireflyRandom() * 7,
+            blinkBurstOffset: fireflyRandom() * 12,
+            fastBlinkSpeed: 10 + fireflyRandom() * 5,
+          })
+          fireflyColors[index * 3] = color.r
+          fireflyColors[index * 3 + 1] = color.g
+          fireflyColors[index * 3 + 2] = color.b
+          fireflyPhases[index] = phase
+          fireflyBlinkSpeeds[index] = 1.5 + fireflyRandom() * 3.2
+        }
+      })
+
+      fireflyGeometry.setDrawRange(0, fireflyState.length)
+      fireflyColorAttribute.needsUpdate = true
+    }
+
     for (let index = 0; index < 56; index += 1) {
       const angle =
         (index / 56) * Math.PI * 2 + 0.11 + Math.sin(index * 1.7) * 0.025
@@ -2162,6 +2457,232 @@ export default function ExplorePortfolio() {
     car.position.set(0, 0, 12)
     scene.add(car)
 
+    const playBall = createPlayBall()
+    playBall.position.set(
+      PLAY_BALL_SPAWN.x,
+      PLAY_BALL_RADIUS,
+      PLAY_BALL_SPAWN.z
+    )
+    scene.add(playBall)
+    const playBallSquashVisual = playBall.userData.squashVisual as THREE.Group
+    const playBallRollingVisual = playBall.userData.rollingVisual as THREE.Group
+    const playBallVelocity = new THREE.Vector3(0, 0, 0)
+    const playBallRotationAxis = new THREE.Vector3()
+    const playBallScreenPosition = new THREE.Vector3()
+    const playBallPreviousPosition = playBall.position.clone()
+    let playBallDeformation = 0
+    let playBallDeformationVelocity = 0
+
+    const playHoop = createPlayHoop()
+    scene.add(playHoop)
+    let playHoopNormalX = 0
+    let playHoopNormalZ = 1
+    let previousPlayHoopSide = 0
+
+    const spawnPlayHoop = () => {
+      let spawnX = PLAY_HOOP_FALLBACK.x
+      let spawnZ = PLAY_HOOP_FALLBACK.z
+      let spawnAngle = Math.atan2(spawnZ, spawnX)
+
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const angle = Math.random() * Math.PI * 2
+        const radius = 51.5 + Math.random() * 2.2
+        const candidateX = Math.cos(angle) * radius
+        const candidateZ = Math.sin(angle) * radius
+        const clearOfStations = STATIONS.every(
+          (station) =>
+            Math.hypot(candidateX - station.x, candidateZ - station.z) > 12
+        )
+        const clearOfBall =
+          Math.hypot(
+            candidateX - playBall.position.x,
+            candidateZ - playBall.position.z
+          ) > 13
+        const clearOfCar =
+          Math.hypot(candidateX - car.position.x, candidateZ - car.position.z) >
+          11
+        if (!clearOfStations || !clearOfBall || !clearOfCar) continue
+        spawnX = candidateX
+        spawnZ = candidateZ
+        spawnAngle = angle
+        break
+      }
+
+      const rotation = -spawnAngle + (Math.random() - 0.5) * 0.55
+      playHoop.position.set(spawnX, PLAY_HOOP_HEIGHT, spawnZ)
+      playHoop.rotation.y = rotation
+      playHoop.scale.setScalar(1)
+      playHoopNormalX = Math.sin(rotation)
+      playHoopNormalZ = Math.cos(rotation)
+      previousPlayHoopSide =
+        (playBall.position.x - spawnX) * playHoopNormalX +
+        (playBall.position.z - spawnZ) * playHoopNormalZ
+      setHoopPosition({ x: spawnX, z: spawnZ })
+    }
+    spawnPlayHoop()
+
+    const getPlayBallRestitution = (impactSpeed: number) =>
+      THREE.MathUtils.lerp(
+        0.42,
+        BALL_RESTITUTION,
+        THREE.MathUtils.clamp(impactSpeed / 10, 0, 1)
+      )
+
+    const triggerPlayBallBounce = (strength: number) => {
+      playBallDeformation = Math.max(
+        playBallDeformation,
+        THREE.MathUtils.clamp(strength, 0.22, 1)
+      )
+      playBallDeformationVelocity = Math.min(playBallDeformationVelocity, 0)
+    }
+
+    const getGroundedPlayHoopCollision = (
+      position: THREE.Vector3,
+      collisionCenterHeight: number,
+      collisionRadius: number,
+      fallbackVelocityX: number,
+      fallbackVelocityZ: number
+    ) => {
+      const relativeX = position.x - playHoop.position.x
+      const relativeZ = position.z - playHoop.position.z
+      const hoopTangentX = playHoopNormalZ
+      const hoopTangentZ = -playHoopNormalX
+      const tangentOffset = relativeX * hoopTangentX + relativeZ * hoopTangentZ
+      const normalOffset =
+        relativeX * playHoopNormalX + relativeZ * playHoopNormalZ
+      const verticalOffset =
+        terrainHeightAt(position.x, position.z) +
+        collisionCenterHeight -
+        PLAY_HOOP_HEIGHT
+      const distanceFromHoopCenter = Math.hypot(tangentOffset, verticalOffset)
+      if (distanceFromHoopCenter < 0.001) return null
+
+      const centerlineTangent =
+        (tangentOffset / distanceFromHoopCenter) * PLAY_HOOP_RADIUS
+      const centerlineVertical =
+        (verticalOffset / distanceFromHoopCenter) * PLAY_HOOP_RADIUS
+      const tangentDelta = tangentOffset - centerlineTangent
+      const verticalDelta = verticalOffset - centerlineVertical
+      const minimumDistance = collisionRadius + PLAY_HOOP_TUBE_RADIUS
+      const distanceFromRing = Math.hypot(
+        tangentDelta,
+        verticalDelta,
+        normalOffset
+      )
+      if (distanceFromRing >= minimumDistance) return null
+
+      const horizontalDistance = Math.hypot(tangentDelta, normalOffset)
+      const requiredHorizontalDistance = Math.sqrt(
+        Math.max(0, minimumDistance ** 2 - verticalDelta ** 2)
+      )
+      if (horizontalDistance >= requiredHorizontalDistance) return null
+
+      let collisionNormalX: number
+      let collisionNormalZ: number
+      if (horizontalDistance > 0.001) {
+        const tangentNormal = tangentDelta / horizontalDistance
+        const planeNormal = normalOffset / horizontalDistance
+        collisionNormalX =
+          hoopTangentX * tangentNormal + playHoopNormalX * planeNormal
+        collisionNormalZ =
+          hoopTangentZ * tangentNormal + playHoopNormalZ * planeNormal
+      } else {
+        const planarSpeed = Math.hypot(fallbackVelocityX, fallbackVelocityZ)
+        collisionNormalX =
+          planarSpeed > 0.001 ? -fallbackVelocityX / planarSpeed : 1
+        collisionNormalZ =
+          planarSpeed > 0.001 ? -fallbackVelocityZ / planarSpeed : 0
+      }
+
+      return {
+        correctionDistance:
+          requiredHorizontalDistance - horizontalDistance + 0.015,
+        normalX: collisionNormalX,
+        normalZ: collisionNormalZ,
+      }
+    }
+
+    const resolvePlayBallHoopCollision = () => {
+      const collision = getGroundedPlayHoopCollision(
+        playBall.position,
+        PLAY_BALL_RADIUS,
+        PLAY_BALL_RADIUS,
+        playBallVelocity.x,
+        playBallVelocity.z
+      )
+      if (!collision) return
+
+      playBall.position.x += collision.normalX * collision.correctionDistance
+      playBall.position.z += collision.normalZ * collision.correctionDistance
+      const normalSpeed =
+        playBallVelocity.x * collision.normalX +
+        playBallVelocity.z * collision.normalZ
+      if (normalSpeed < 0) {
+        const restitution = getPlayBallRestitution(Math.abs(normalSpeed))
+        playBallVelocity.x -=
+          collision.normalX * normalSpeed * (1 + restitution)
+        playBallVelocity.z -=
+          collision.normalZ * normalSpeed * (1 + restitution)
+        triggerPlayBallBounce(Math.abs(normalSpeed) / 8)
+        if (normalSpeed < -0.4) {
+          soundscape?.playCollision(Math.abs(normalSpeed))
+        }
+      }
+    }
+
+    const resolveCarHoopCollision = () => {
+      const carVelocityX = Math.sin(heading) * velocity
+      const carVelocityZ = Math.cos(heading) * velocity
+      const collision = getGroundedPlayHoopCollision(
+        car.position,
+        CAR_COLLISION_CENTER_HEIGHT,
+        CAR_COLLISION_RADIUS,
+        carVelocityX,
+        carVelocityZ
+      )
+      if (!collision) return 0
+
+      car.position.x += collision.normalX * collision.correctionDistance
+      car.position.z += collision.normalZ * collision.correctionDistance
+      const normalSpeed =
+        carVelocityX * collision.normalX + carVelocityZ * collision.normalZ
+      if (normalSpeed >= 0) return 0
+
+      const headingX = Math.sin(heading)
+      const headingZ = Math.cos(heading)
+      velocity -=
+        normalSpeed *
+        (1 + COLLISION_BOUNCE) *
+        (collision.normalX * headingX + collision.normalZ * headingZ)
+      soundscape?.playCollision(Math.abs(normalSpeed))
+      return Math.abs(normalSpeed)
+    }
+
+    const resolvePlayBallObstacle = (
+      centerX: number,
+      centerZ: number,
+      obstacleRadius: number
+    ) => {
+      const offsetX = playBall.position.x - centerX
+      const offsetZ = playBall.position.z - centerZ
+      const minimumDistance = obstacleRadius + PLAY_BALL_RADIUS
+      const distance = Math.hypot(offsetX, offsetZ)
+      if (distance >= minimumDistance) return
+
+      const normalX = distance > 0.001 ? offsetX / distance : 1
+      const normalZ = distance > 0.001 ? offsetZ / distance : 0
+      playBall.position.x = centerX + normalX * minimumDistance
+      playBall.position.z = centerZ + normalZ * minimumDistance
+      const normalSpeed =
+        playBallVelocity.x * normalX + playBallVelocity.z * normalZ
+      if (normalSpeed < 0) {
+        const restitution = getPlayBallRestitution(Math.abs(normalSpeed))
+        playBallVelocity.x -= normalX * normalSpeed * (1 + restitution)
+        playBallVelocity.z -= normalZ * normalSpeed * (1 + restitution)
+        triggerPlayBallBounce(Math.abs(normalSpeed) / 8)
+      }
+    }
+
     const scatterLeaves = (
       interaction: NatureInteraction,
       speed: number,
@@ -2294,8 +2815,11 @@ export default function ExplorePortfolio() {
         normalizeModel(nature[5], 0.75, "height")
         normalizeModel(nature[6], 0.9, "height")
         normalizeModel(nature[7], 0.7, "height")
-        natureInteractions.push(...placeNature(scene, nature))
+        const placedNature = placeNature(scene, nature)
+        natureInteractions.push(...placedNature)
+        seedFireflies(placedNature)
       } else {
+        const fallbackTrees: NatureInteraction[] = []
         for (let index = 0; index < 32; index += 1) {
           const angle = (index / 32) * Math.PI * 2
           const radius = index % 2 ? 45 : 50
@@ -2308,7 +2832,10 @@ export default function ExplorePortfolio() {
           )
             continue
           createTree(scene, x, z, 0.8 + (index % 4) * 0.12)
+          fallbackTrees.push({ x, z, radius: 2.2, kind: "tree" })
         }
+        natureInteractions.push(...fallbackTrees)
+        seedFireflies(fallbackTrees)
       }
       setLoaded(true)
     }
@@ -2485,6 +3012,196 @@ export default function ExplorePortfolio() {
         car.position.z *= boundaryScale
         velocity *= -0.25
       }
+
+      collisionSpeed = Math.max(collisionSpeed, resolveCarHoopCollision())
+
+      playBallPreviousPosition.copy(playBall.position)
+      playBall.position.x += playBallVelocity.x * delta
+      playBall.position.z += playBallVelocity.z * delta
+      playBall.position.y =
+        terrainHeightAt(playBall.position.x, playBall.position.z) +
+        PLAY_BALL_RADIUS
+      playBallVelocity.y = 0
+      const rollingResistance = Math.pow(
+        BALL_ROLLING_RETENTION_PER_SECOND,
+        delta
+      )
+      playBallVelocity.x *= rollingResistance
+      playBallVelocity.z *= rollingResistance
+      if (Math.hypot(playBallVelocity.x, playBallVelocity.z) < 0.06) {
+        playBallVelocity.x = 0
+        playBallVelocity.z = 0
+      }
+
+      resolvePlayBallObstacle(0, 0, CENTER_STAGE_COLLISION_RADIUS)
+      STATIONS.forEach((station) => {
+        resolvePlayBallObstacle(station.x, station.z, STATION_COLLISION_RADIUS)
+      })
+
+      const ballBoundary = DRIVABLE_RADIUS - PLAY_BALL_RADIUS
+      const ballRadiusFromCenter = Math.hypot(
+        playBall.position.x,
+        playBall.position.z
+      )
+      if (ballRadiusFromCenter > ballBoundary) {
+        const normalX = playBall.position.x / ballRadiusFromCenter
+        const normalZ = playBall.position.z / ballRadiusFromCenter
+        playBall.position.x = normalX * ballBoundary
+        playBall.position.z = normalZ * ballBoundary
+        const outwardSpeed =
+          playBallVelocity.x * normalX + playBallVelocity.z * normalZ
+        if (outwardSpeed > 0) {
+          const inwardReboundSpeed = THREE.MathUtils.clamp(
+            Math.max(BALL_EDGE_MIN_REBOUND_SPEED, outwardSpeed * 0.9),
+            BALL_EDGE_MIN_REBOUND_SPEED,
+            BALL_EDGE_MAX_REBOUND_SPEED
+          )
+          playBall.position.x = normalX * (ballBoundary - 0.05)
+          playBall.position.z = normalZ * (ballBoundary - 0.05)
+          playBallVelocity.x -= normalX * (outwardSpeed + inwardReboundSpeed)
+          playBallVelocity.z -= normalZ * (outwardSpeed + inwardReboundSpeed)
+          triggerPlayBallBounce(inwardReboundSpeed / 18)
+          soundscape?.playCollision(Math.max(1.5, outwardSpeed))
+        }
+      }
+
+      const ballOffsetX = playBall.position.x - car.position.x
+      const ballOffsetZ = playBall.position.z - car.position.z
+      const carBallDistance = Math.hypot(ballOffsetX, ballOffsetZ)
+      const carBallMinimumDistance = PLAY_BALL_RADIUS + CAR_COLLISION_RADIUS
+      const ballTouchingCar = carBallDistance < carBallMinimumDistance
+      if (ballTouchingCar) {
+        const travelDirection = velocity >= 0 ? 1 : -1
+        const normalX =
+          carBallDistance > 0.001
+            ? ballOffsetX / carBallDistance
+            : Math.sin(heading) * travelDirection
+        const normalZ =
+          carBallDistance > 0.001
+            ? ballOffsetZ / carBallDistance
+            : Math.cos(heading) * travelDirection
+        playBall.position.x = car.position.x + normalX * carBallMinimumDistance
+        playBall.position.z = car.position.z + normalZ * carBallMinimumDistance
+
+        const carVelocityX = Math.sin(heading) * velocity
+        const carVelocityZ = Math.cos(heading) * velocity
+        const approachSpeed = Math.max(
+          0,
+          (carVelocityX - playBallVelocity.x) * normalX +
+            (carVelocityZ - playBallVelocity.z) * normalZ
+        )
+        if (approachSpeed > 0.05) {
+          const restitution = getPlayBallRestitution(approachSpeed)
+          const collisionImpulse =
+            ((1 + restitution) * approachSpeed) /
+            (1 / CAR_EFFECTIVE_MASS + 1 / PLAY_BALL_MASS)
+          const ballSpeedChange = collisionImpulse / PLAY_BALL_MASS
+          playBallVelocity.x += normalX * ballSpeedChange
+          playBallVelocity.z += normalZ * ballSpeedChange
+          const carHeadingX = Math.sin(heading)
+          const carHeadingZ = Math.cos(heading)
+          const carSpeedChange =
+            (collisionImpulse / CAR_EFFECTIVE_MASS) *
+            (normalX * carHeadingX + normalZ * carHeadingZ)
+          velocity -= carSpeedChange
+          collisionSpeed = Math.max(collisionSpeed, ballSpeedChange)
+          triggerPlayBallBounce(ballSpeedChange / 11)
+        }
+      }
+
+      resolvePlayBallHoopCollision()
+
+      const currentPlayHoopSide =
+        (playBall.position.x - playHoop.position.x) * playHoopNormalX +
+        (playBall.position.z - playHoop.position.z) * playHoopNormalZ
+      const crossedPlayHoop =
+        (previousPlayHoopSide < 0 && currentPlayHoopSide >= 0) ||
+        (previousPlayHoopSide > 0 && currentPlayHoopSide <= 0)
+      let scoredPlayHoop = false
+      if (
+        crossedPlayHoop &&
+        Math.abs(previousPlayHoopSide - currentPlayHoopSide) > 0.02 &&
+        Math.hypot(playBallVelocity.x, playBallVelocity.z) > 0.25
+      ) {
+        const crossingProgress = THREE.MathUtils.clamp(
+          previousPlayHoopSide / (previousPlayHoopSide - currentPlayHoopSide),
+          0,
+          1
+        )
+        const crossingX = THREE.MathUtils.lerp(
+          playBallPreviousPosition.x,
+          playBall.position.x,
+          crossingProgress
+        )
+        const crossingZ = THREE.MathUtils.lerp(
+          playBallPreviousPosition.z,
+          playBall.position.z,
+          crossingProgress
+        )
+        const hoopTangentX = playHoopNormalZ
+        const hoopTangentZ = -playHoopNormalX
+        const tangentOffset =
+          (crossingX - playHoop.position.x) * hoopTangentX +
+          (crossingZ - playHoop.position.z) * hoopTangentZ
+        const verticalOffset =
+          terrainHeightAt(crossingX, crossingZ) +
+          PLAY_BALL_RADIUS -
+          PLAY_HOOP_HEIGHT
+        const distanceFromOpeningCenter = Math.hypot(
+          tangentOffset,
+          verticalOffset
+        )
+        if (distanceFromOpeningCenter <= PLAY_HOOP_CLEARANCE) {
+          scoredPlayHoop = true
+          setHoopCount((current) => current + 1)
+          soundscape?.playInteraction(true)
+          spawnPlayHoop()
+        }
+      }
+      if (!scoredPlayHoop) previousPlayHoopSide = currentPlayHoopSide
+
+      if (
+        Math.abs(playBallDeformation) > 0.002 ||
+        Math.abs(playBallDeformationVelocity) > 0.002
+      ) {
+        const springForce = -86 * playBallDeformation
+        const dampingForce = -14 * playBallDeformationVelocity
+        playBallDeformationVelocity += (springForce + dampingForce) * delta
+        playBallDeformation += playBallDeformationVelocity * delta
+        playBallDeformation = THREE.MathUtils.clamp(
+          playBallDeformation,
+          -0.28,
+          1
+        )
+        const verticalScale = 1 - playBallDeformation * 0.14
+        const horizontalScale = 1 / Math.sqrt(verticalScale)
+        playBallSquashVisual.scale.set(
+          horizontalScale,
+          verticalScale,
+          horizontalScale
+        )
+        playBall.position.y =
+          terrainHeightAt(playBall.position.x, playBall.position.z) +
+          PLAY_BALL_RADIUS * verticalScale
+      } else {
+        playBallDeformation = 0
+        playBallDeformationVelocity = 0
+        playBallSquashVisual.scale.setScalar(1)
+        playBall.position.y =
+          terrainHeightAt(playBall.position.x, playBall.position.z) +
+          PLAY_BALL_RADIUS
+      }
+
+      const ballPlanarSpeed = Math.hypot(playBallVelocity.x, playBallVelocity.z)
+      if (ballPlanarSpeed > 0.01) {
+        playBallRotationAxis
+          .set(playBallVelocity.z, 0, -playBallVelocity.x)
+          .normalize()
+        playBallRollingVisual.rotateOnWorldAxis(
+          playBallRotationAxis,
+          (ballPlanarSpeed * delta) / PLAY_BALL_RADIUS
+        )
+      }
       if (collisionSpeed > 0.8) soundscape?.playCollision(collisionSpeed)
 
       const nextNatureInteractions = new Set<number>()
@@ -2625,6 +3342,9 @@ export default function ExplorePortfolio() {
       )
       camera.lookAt(car.position.x, 0.6, car.position.z)
 
+      const hoopPulse = 1 + Math.sin(now * 0.0032) * 0.025
+      playHoop.scale.setScalar(hoopPulse)
+
       rotatingStationLabels.forEach((label, index) => {
         label.position.y = 6.35 + Math.sin(now * 0.0011 + index * 1.4) * 0.08
         label.lookAt(camera.position)
@@ -2740,6 +3460,78 @@ export default function ExplorePortfolio() {
       sun.intensity = THREE.MathUtils.lerp(0.04, 4.2, dayFactor)
       moon.intensity = THREE.MathUtils.lerp(1.35, 0, dayFactor)
       starMaterial.opacity = 1 - dayFactor
+      const nightFactor = Math.pow(1 - dayFactor, 1.35)
+      fireflyMaterial.opacity = nightFactor
+      fireflyHaloMaterial.opacity = nightFactor * 0.72
+      if (nightFactor > 0.005) {
+        const fireflyTime = now * 0.001
+        const fireflyMotionTime = fireflyTime * 0.55
+        fireflyState.forEach((firefly, index) => {
+          const orbitX = firefly.phase + fireflyMotionTime * firefly.speed
+          const orbitZ =
+            firefly.phase * 1.37 + fireflyMotionTime * firefly.speed * 0.73
+          const flutter =
+            Math.sin(
+              fireflyMotionTime * (1.3 + firefly.speed) + firefly.phase * 2.3
+            ) +
+            Math.sin(fireflyMotionTime * 0.47 + firefly.phase * 3.1) * 0.55
+          fireflyPositionAttribute.setXYZ(
+            index,
+            firefly.anchorX +
+              Math.cos(orbitX) * firefly.orbitRadius +
+              flutter * firefly.sway,
+            firefly.baseY +
+              Math.sin(fireflyMotionTime * 1.25 + firefly.phase) * 0.34 +
+              Math.sin(fireflyMotionTime * 2.8 + firefly.phase * 0.7) * 0.2,
+            firefly.anchorZ +
+              Math.sin(orbitZ) * firefly.orbitRadius * 0.82 +
+              Math.cos(fireflyMotionTime * 1.43 + firefly.phase) * firefly.sway
+          )
+          const normalPulse = Math.pow(
+            0.5 +
+              0.5 *
+                Math.sin(
+                  fireflyTime * fireflyBlinkSpeeds[index] + fireflyPhases[index]
+                ),
+            4
+          )
+          const burstPosition =
+            (fireflyTime + firefly.blinkBurstOffset) %
+            firefly.blinkBurstInterval
+          const burstFade = Math.min(0.22, firefly.blinkBurstDuration * 0.25)
+          const burstEnvelope =
+            THREE.MathUtils.smoothstep(burstPosition, 0, burstFade) *
+            (1 -
+              THREE.MathUtils.smoothstep(
+                burstPosition,
+                firefly.blinkBurstDuration - burstFade,
+                firefly.blinkBurstDuration
+              ))
+          const fastPulse = Math.pow(
+            0.5 +
+              0.5 *
+                Math.sin(
+                  fireflyTime * firefly.fastBlinkSpeed + firefly.phase * 1.7
+                ),
+            3
+          )
+          const pulse =
+            0.65 +
+            THREE.MathUtils.lerp(
+              normalPulse * 1.7,
+              fastPulse * 2.05,
+              burstEnvelope
+            )
+          fireflyColorAttribute.setXYZ(
+            index,
+            firefly.color.r * pulse,
+            firefly.color.g * pulse,
+            firefly.color.b * pulse
+          )
+        })
+        fireflyPositionAttribute.needsUpdate = true
+        fireflyColorAttribute.needsUpdate = true
+      }
       stationLights.forEach((light) => {
         light.intensity = (1 - dayFactor) * 8
       })
@@ -2767,6 +3559,43 @@ export default function ExplorePortfolio() {
         lastUiUpdate = now
         setSpeed(Math.round(Math.abs(velocity) * 7))
         setCarPosition({ x: car.position.x, z: car.position.z })
+        setBallPosition({ x: playBall.position.x, z: playBall.position.z })
+        camera.updateMatrixWorld()
+        playBallScreenPosition.copy(playBall.position).project(camera)
+        const offscreen =
+          Math.abs(playBallScreenPosition.x) > 0.86 ||
+          Math.abs(playBallScreenPosition.y) > 0.72 ||
+          playBallScreenPosition.z < -1 ||
+          playBallScreenPosition.z > 1
+        if (offscreen) {
+          const directionX = playBallScreenPosition.x
+          const directionY = -playBallScreenPosition.y
+          const rawEdgeScale = Math.min(
+            Math.abs(directionX) > 0.001
+              ? 0.82 / Math.abs(directionX)
+              : Number.POSITIVE_INFINITY,
+            Math.abs(directionY) > 0.001
+              ? 0.55 / Math.abs(directionY)
+              : Number.POSITIVE_INFINITY
+          )
+          const edgeScale = Number.isFinite(rawEdgeScale) ? rawEdgeScale : 0
+          setBallTracker({
+            offscreen: true,
+            left: 50 + directionX * edgeScale * 50,
+            top: 50 + directionY * edgeScale * 50,
+            angle: THREE.MathUtils.radToDeg(Math.atan2(directionY, directionX)),
+            distance: Math.round(
+              Math.hypot(
+                playBall.position.x - car.position.x,
+                playBall.position.z - car.position.z
+              )
+            ),
+          })
+        } else {
+          setBallTracker((current) =>
+            current.offscreen ? { ...current, offscreen: false } : current
+          )
+        }
         let closest: Station | null = null
         let closestDistance = 8.4
         for (const station of STATIONS) {
@@ -2827,6 +3656,9 @@ export default function ExplorePortfolio() {
         }
         if (object instanceof THREE.Points) {
           object.geometry.dispose()
+          if (object.material instanceof THREE.PointsMaterial) {
+            object.material.map?.dispose()
+          }
           object.material.dispose()
         }
       })
@@ -2993,6 +3825,14 @@ export default function ExplorePortfolio() {
                 <strong>{speed}</strong>
                 <span>KM/H</span>
               </div>
+              <div
+                className="explore-shot-count"
+                aria-label={`${hoopCount} successful hoop shots`}
+                aria-live="polite"
+              >
+                <strong>{hoopCount}</strong>
+                <span>Shots</span>
+              </div>
             </div>
             <div className="explore-hud-status">
               <button
@@ -3042,20 +3882,57 @@ export default function ExplorePortfolio() {
                   key={station.id}
                   className={visited.includes(station.id) ? "is-visited" : ""}
                   style={{
-                    left: `${50 + station.x * 1.15}%`,
-                    top: `${50 + station.z * 1.15}%`,
+                    left: `${50 + station.x * MINIMAP_POSITION_SCALE}%`,
+                    top: `${50 + station.z * MINIMAP_POSITION_SCALE}%`,
                   }}
                   title={station.label}
                 />
               ))}
+              <span
+                className="explore-map-hoop"
+                style={{
+                  left: `${50 + hoopPosition.x * MINIMAP_POSITION_SCALE}%`,
+                  top: `${50 + hoopPosition.z * MINIMAP_POSITION_SCALE}%`,
+                }}
+                title="Active hoop"
+                aria-label="Active hoop position"
+              />
+              <span
+                className="explore-map-ball"
+                style={{
+                  left: `${50 + ballPosition.x * MINIMAP_POSITION_SCALE}%`,
+                  top: `${50 + ballPosition.z * MINIMAP_POSITION_SCALE}%`,
+                }}
+                title="Play ball"
+                aria-label="Play ball position"
+              />
               <b
                 style={{
-                  left: `${50 + carPosition.x * 1.15}%`,
-                  top: `${50 + carPosition.z * 1.15}%`,
+                  left: `${50 + carPosition.x * MINIMAP_POSITION_SCALE}%`,
+                  top: `${50 + carPosition.z * MINIMAP_POSITION_SCALE}%`,
                 }}
+                title="Golf cart"
               />
             </div>
           </aside>
+
+          {ballTracker.offscreen && !activeStation ? (
+            <div
+              className="explore-ball-tracker"
+              style={{
+                left: `${ballTracker.left}%`,
+                top: `${ballTracker.top}%`,
+              }}
+              aria-hidden="true"
+            >
+              <span
+                style={{ transform: `rotate(${ballTracker.angle}deg)` }}
+                aria-hidden="true"
+              />
+              <strong>Ball</strong>
+              <small>{ballTracker.distance}m</small>
+            </div>
+          ) : null}
 
           {nearest && !activeStation ? (
             <button
