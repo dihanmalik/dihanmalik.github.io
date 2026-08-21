@@ -189,6 +189,9 @@ type Engine = {
 const WIDTH = 480
 const HEIGHT = 720
 const SHIP_SPEED = 315
+const SHIP_DRAW_SCALE = 0.82
+const SHIP_SPRITE_HEIGHT = 52
+const TOUCH_SHIP_CLEARANCE_PX = 24
 const LASER_CHARGE_MS = 4_500
 const POWER_EFFECT_MS = 30_000
 const RIPPLE_DURATION_MS = 950
@@ -840,7 +843,7 @@ function drawPixelShip(
 ) {
   context.save()
   context.translate(Math.round(x), Math.round(y))
-  context.scale(0.82, 0.82)
+  context.scale(SHIP_DRAW_SCALE, SHIP_DRAW_SCALE)
   if (shield) {
     context.strokeStyle = GAME_COLORS.ship
     context.setLineDash([4, 4])
@@ -3193,10 +3196,15 @@ export function SpaceShooterGame() {
       return
     event.preventDefault()
     const bounds = event.currentTarget.getBoundingClientRect()
+    const pointerY = ((event.clientY - bounds.top) / bounds.height) * HEIGHT
+    const touchOffset =
+      event.pointerType === "touch"
+        ? SHIP_SPRITE_HEIGHT * SHIP_DRAW_SCALE +
+          (TOUCH_SHIP_CLEARANCE_PX / bounds.height) * HEIGHT
+        : 0
     engineRef.current.ship.targetX =
       ((event.clientX - bounds.left) / bounds.width) * WIDTH
-    engineRef.current.ship.targetY =
-      ((event.clientY - bounds.top) / bounds.height) * HEIGHT
+    engineRef.current.ship.targetY = pointerY - touchOffset
   }
 
   const selectPaletteColor = useCallback(
