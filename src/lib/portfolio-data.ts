@@ -26,7 +26,7 @@ export const VISITOR_AUDIENCE_TYPE_KEY = "portfolio-visitor-audience-type"
 const VISIT_SESSION_KEY = "portfolio-visit-recorded"
 export const WEBSITE_RATING_EVENT = "portfolio-website-rating-change"
 
-export const GAME_IDS = ["void-patrol", "night-shift"] as const
+export const GAME_IDS = ["void-patrol", "night-shift", "3d-world"] as const
 export type GameId = (typeof GAME_IDS)[number]
 export type AudienceType = "visitor" | "recruiter"
 export type TrackingConsent = "granted" | "denied"

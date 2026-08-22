@@ -96,6 +96,7 @@
 .explore-hud-actions { display: flex; align-items: center; gap: 0.6rem; pointer-events: auto; }
 .explore-hud-status { display: flex; align-items: stretch; justify-content: flex-end; gap: 0.6rem; pointer-events: auto; }
 .explore-back,
+.explore-leaderboard,
 .explore-fullscreen,
 .explore-progress,
 .explore-map,
@@ -103,6 +104,8 @@
 .explore-shot-count { border: 2px solid var(--explore-ink); background: rgb(244 239 228 / 92%); box-shadow: 4px 4px 0 var(--explore-ink); backdrop-filter: blur(8px); }
 .explore-back { display: flex; height: var(--explore-control-height); align-items: center; gap: 0.5rem; box-sizing: border-box; padding-inline: 0.8rem; pointer-events: auto; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
 .explore-back svg { width: 1rem; }
+.explore-leaderboard { height: var(--explore-control-height); border-radius: 0; border-width: 2px; border-color: var(--explore-ink); padding-inline: 0.8rem; color: var(--explore-ink); background: rgb(244 239 228 / 92%); font-size: 0.7rem; text-transform: uppercase; }
+.explore-leaderboard:hover { color: var(--explore-paper); background: var(--explore-ink); }
 .explore-fullscreen { display: flex; height: var(--explore-control-height); align-items: center; gap: 0.45rem; box-sizing: border-box; border: 2px solid var(--explore-ink); padding-inline: 0.7rem; pointer-events: auto; background: rgb(244 239 228 / 92%); box-shadow: 4px 4px 0 var(--explore-ink); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; backdrop-filter: blur(8px); }
 .explore-fullscreen:hover { color: var(--explore-paper); background: var(--explore-ink); }
 .explore-fullscreen svg { width: 1rem; }
@@ -232,6 +235,8 @@
   .explore-hud-status { width: 100%; gap: 0.35rem; }
   .explore-fullscreen span { display: none; }
   .explore-fullscreen { width: 2.65rem; justify-content: center; padding: 0; }
+  .explore-leaderboard { width: 2.65rem; padding: 0; font-size: 0; }
+  .explore-leaderboard svg { width: 1rem; }
   .explore-speed { min-width: 4.75rem; justify-content: center; padding-inline: 0.45rem; }
   .explore-speed strong { font-size: 1.45rem; }
   .explore-shot-count { min-width: 4.4rem; justify-content: center; padding-inline: 0.4rem; }

@@ -35,7 +35,16 @@ import {
   optimizationNotes,
   workEntries,
 } from "@/field-manual-portfolio/data"
+import {
+  LeaderboardDialog,
+  ScoreSubmissionDialog,
+} from "@/field-manual-portfolio/game/Leaderboard"
 import { getTechLogos } from "@/features/tech-stacks/constants/techLogos"
+import {
+  recordGameOver,
+  recordGameStart,
+  trackInBackground,
+} from "@/lib/portfolio-data"
 
 import { carModelUrl, loadNatureAsset, NATURE_ASSETS } from "./exploreAssets"
 
@@ -1487,7 +1496,9 @@ function createPlayHoop() {
       Math.sin(angle) * PLAY_HOOP_RADIUS,
       0.42
     )
-    hoop.add(marker)
+    const oppositeMarker = marker.clone()
+    oppositeMarker.position.z = -0.42
+    hoop.add(marker, oppositeMarker)
   }
 
   const glowLight = new THREE.PointLight(0xff6b35, 0, 18, 1.65)
@@ -1845,6 +1856,7 @@ export default function ExplorePortfolio() {
   const [ballPosition, setBallPosition] = useState(PLAY_BALL_SPAWN)
   const [hoopPosition, setHoopPosition] = useState(PLAY_HOOP_FALLBACK)
   const [hoopCount, setHoopCount] = useState(0)
+  const [scoreSubmissionOpen, setScoreSubmissionOpen] = useState(false)
   const [ballTracker, setBallTracker] = useState({
     offscreen: false,
     left: 50,
@@ -1875,6 +1887,18 @@ export default function ExplorePortfolio() {
     audioRef.current = audioContext
     if (audioContext.state === "suspended") void audioContext.resume()
     setStarted(true)
+    trackInBackground(recordGameStart("3d-world"))
+  }, [])
+
+  const requestWorldExit = useCallback(() => {
+    if (scoreSubmissionOpen) return
+    trackInBackground(recordGameOver("3d-world", hoopCount))
+    if (document.fullscreenElement) void document.exitFullscreen()
+    setScoreSubmissionOpen(true)
+  }, [hoopCount, scoreSubmissionOpen])
+
+  const leaveWorld = useCallback(() => {
+    window.location.assign("/")
   }, [])
 
   useEffect(() => {
@@ -2511,7 +2535,6 @@ export default function ExplorePortfolio() {
       .markerMaterials as THREE.MeshStandardMaterial[]
     let playHoopNormalX = 0
     let playHoopNormalZ = 1
-    let previousPlayHoopSide = 0
 
     const spawnPlayHoop = () => {
       let spawnX = PLAY_HOOP_FALLBACK.x
@@ -2548,9 +2571,6 @@ export default function ExplorePortfolio() {
       playHoop.scale.setScalar(1)
       playHoopNormalX = Math.sin(rotation)
       playHoopNormalZ = Math.cos(rotation)
-      previousPlayHoopSide =
-        (playBall.position.x - spawnX) * playHoopNormalX +
-        (playBall.position.z - spawnZ) * playHoopNormalZ
       setHoopPosition({ x: spawnX, z: spawnZ })
     }
     spawnPlayHoop()
@@ -3145,20 +3165,22 @@ export default function ExplorePortfolio() {
 
       resolvePlayBallHoopCollision()
 
+      const previousPlayHoopSide =
+        (playBallPreviousPosition.x - playHoop.position.x) * playHoopNormalX +
+        (playBallPreviousPosition.z - playHoop.position.z) * playHoopNormalZ
       const currentPlayHoopSide =
         (playBall.position.x - playHoop.position.x) * playHoopNormalX +
         (playBall.position.z - playHoop.position.z) * playHoopNormalZ
+      const playHoopSideDelta = currentPlayHoopSide - previousPlayHoopSide
       const crossedPlayHoop =
-        (previousPlayHoopSide < 0 && currentPlayHoopSide >= 0) ||
-        (previousPlayHoopSide > 0 && currentPlayHoopSide <= 0)
-      let scoredPlayHoop = false
+        previousPlayHoopSide * currentPlayHoopSide <= 0 &&
+        Math.abs(playHoopSideDelta) > 0.02
       if (
         crossedPlayHoop &&
-        Math.abs(previousPlayHoopSide - currentPlayHoopSide) > 0.02 &&
         Math.hypot(playBallVelocity.x, playBallVelocity.z) > 0.25
       ) {
         const crossingProgress = THREE.MathUtils.clamp(
-          previousPlayHoopSide / (previousPlayHoopSide - currentPlayHoopSide),
+          -previousPlayHoopSide / playHoopSideDelta,
           0,
           1
         )
@@ -3186,13 +3208,11 @@ export default function ExplorePortfolio() {
           verticalOffset
         )
         if (distanceFromOpeningCenter <= PLAY_HOOP_CLEARANCE) {
-          scoredPlayHoop = true
           setHoopCount((current) => current + 1)
           soundscape?.playInteraction(true)
           spawnPlayHoop()
         }
       }
-      if (!scoredPlayHoop) previousPlayHoopSide = currentPlayHoopSide
 
       if (
         Math.abs(playBallDeformation) > 0.002 ||
@@ -3820,6 +3840,7 @@ export default function ExplorePortfolio() {
             <button type="button" onClick={startExploring}>
               <IconPlayerPlayFilled /> Start exploring
             </button>
+            <LeaderboardDialog gameId="3d-world" gameName="3D World" />
             <a href="./">
               <IconArrowLeft /> Standard portfolio
             </a>
@@ -3859,9 +3880,18 @@ export default function ExplorePortfolio() {
           />
           <header className="explore-hud-top">
             <div className="explore-hud-actions">
-              <a href="./" className="explore-back">
+              <button
+                type="button"
+                className="explore-back"
+                onClick={requestWorldExit}
+              >
                 <IconArrowLeft /> Exit world
-              </a>
+              </button>
+              <LeaderboardDialog
+                gameId="3d-world"
+                gameName="3D World"
+                triggerClassName="explore-leaderboard"
+              />
               {canFullscreen ? (
                 <button
                   className="explore-fullscreen"
@@ -3923,6 +3953,15 @@ export default function ExplorePortfolio() {
               </div>
             </div>
           </header>
+
+          {scoreSubmissionOpen ? (
+            <ScoreSubmissionDialog
+              gameId="3d-world"
+              gameName="3D World"
+              score={hoopCount}
+              onFinished={leaveWorld}
+            />
+          ) : null}
 
           {!loaded ? (
             <div className="explore-loader">Building world…</div>

@@ -37,6 +37,7 @@ import {
 const gameNames: Record<GameId, string> = {
   "void-patrol": "Void Patrol",
   "night-shift": "Night Shift",
+  "3d-world": "3D World",
 }
 
 type NicknameByUid = ReadonlyMap<string, string>
@@ -372,6 +373,7 @@ export function OwnerInsights() {
   >({
     "void-patrol": [],
     "night-shift": [],
+    "3d-world": [],
   })
   const nicknamesByUid = useMemo(() => {
     const latestNames = new Map<
@@ -413,6 +415,7 @@ export function OwnerInsights() {
       setLeaderboards({
         "void-patrol": nextLeaderboards[0],
         "night-shift": nextLeaderboards[1],
+        "3d-world": nextLeaderboards[2],
       })
       setOwnerVerified(true)
     } catch (loadError) {

@@ -21,7 +21,9 @@ service cloud.firestore {
     }
 
     function validGame(value) {
-      return value == "void-patrol" || value == "night-shift";
+      return value == "void-patrol"
+        || value == "night-shift"
+        || value == "3d-world";
     }
 
     function validScore(value) {

@@ -31,9 +31,10 @@ variables in that service and expose them to the `pnpm build` step. Local
   first/last visit, visit count, and active time.
 - `playerProgress/{uid_gameId}` stores totals and the current best score.
 - `playerProgress/{uid_gameId}/runs/{runId}` stores each completed replay.
-- `leaderboards/{gameId}/entries/{uid}` stores one best-score entry per game
-  and browser, including the optional public nickname, audience type, and
-  server-recorded timestamps for the entry, latest submission, and best score.
+- `leaderboards/{gameId}/entries/{uid}` stores one best-score entry per arcade
+  game or 3D World shot session and browser, including the optional public
+  nickname, audience type, and server-recorded timestamps for the entry,
+  latest submission, and best score.
 - `websiteRatings/{uid}` stores one rating per anonymous browser ID, including
   an optional display name supplied by the rater.
 
