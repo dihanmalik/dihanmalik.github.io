@@ -298,10 +298,7 @@ export async function getOwnLeaderboardEntry(gameId: GameId) {
   return entry.exists() ? (entry.data() as LeaderboardEntry) : null
 }
 
-export async function getLeaderboard(
-  gameId: GameId,
-  audienceType: AudienceType
-) {
+export async function getLeaderboard(gameId: GameId) {
   type RestValue = {
     integerValue?: string
     stringValue?: string
@@ -328,13 +325,6 @@ export async function getLeaderboard(
       body: JSON.stringify({
         structuredQuery: {
           from: [{ collectionId: "entries" }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: "audienceType" },
-              op: "EQUAL",
-              value: { stringValue: audienceType },
-            },
-          },
           orderBy: [
             {
               field: { fieldPath: "bestScore" },

@@ -507,7 +507,7 @@ function Introduction() {
         </span>
         <span className="flex items-center gap-3">
           <span>Manila time</span>
-          <FieldManualThemeToggle className="lg:hidden" />
+          <FieldManualThemeToggle className="hidden lg:inline-grid" />
         </span>
       </div>
 

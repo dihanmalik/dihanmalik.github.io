@@ -115,9 +115,11 @@ function AudienceToggle({
 function LeaderboardTable({
   entries,
   loading,
+  showAudienceType,
 }: {
   entries: LeaderboardEntry[]
   loading: boolean
+  showAudienceType: boolean
 }) {
   if (loading) {
     return (
@@ -128,7 +130,7 @@ function LeaderboardTable({
   if (entries.length === 0) {
     return (
       <p className="py-8 text-center text-muted-foreground">
-        No scores in this group yet. Take the first spot.
+        No scores yet. Take the first spot.
       </p>
     )
   }
@@ -139,6 +141,7 @@ function LeaderboardTable({
         <TableRow>
           <TableHead className="w-12">#</TableHead>
           <TableHead>Player</TableHead>
+          {showAudienceType ? <TableHead>Type</TableHead> : null}
           <TableHead className="text-right">Best</TableHead>
           <TableHead className="text-right">Recorded</TableHead>
         </TableRow>
@@ -150,6 +153,9 @@ function LeaderboardTable({
             <TableCell className="max-w-48 truncate font-medium">
               {entry.nickname}
             </TableCell>
+            {showAudienceType ? (
+              <TableCell className="capitalize">{entry.audienceType}</TableCell>
+            ) : null}
             <TableCell className="text-right font-mono">
               {entry.bestScore.toLocaleString()}
             </TableCell>
@@ -190,13 +196,9 @@ function formatLeaderboardDate(timestamp: LeaderboardEntry["createdAt"]) {
   }).format(timestamp.toDate())
 }
 
-function useLeaderboard(
-  gameId: GameId,
-  audienceType: AudienceType,
-  active: boolean
-) {
+function useLeaderboard(gameId: GameId, active: boolean) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const queryKey = `${gameId}:${audienceType}:${refreshKey}`
+  const queryKey = `${gameId}:${refreshKey}`
   const [result, setResult] = useState<{
     key: string
     entries: LeaderboardEntry[]
@@ -206,7 +208,7 @@ function useLeaderboard(
   useEffect(() => {
     if (!active) return
     let cancelled = false
-    void getLeaderboard(gameId, audienceType)
+    void getLeaderboard(gameId)
       .then((nextEntries) => {
         if (!cancelled) {
           setResult({ key: queryKey, entries: nextEntries })
@@ -219,7 +221,7 @@ function useLeaderboard(
     return () => {
       cancelled = true
     }
-  }, [active, audienceType, gameId, queryKey, refreshKey])
+  }, [active, gameId, queryKey, refreshKey])
 
   return {
     entries: result.key === queryKey ? result.entries : [],
@@ -242,8 +244,8 @@ export function LeaderboardDialog({
   triggerClassName?: string
 }) {
   const [open, setOpen] = useState(false)
-  const [audienceType, setAudienceType] = useState<AudienceType>("visitor")
-  const leaderboard = useLeaderboard(gameId, audienceType, open)
+  const ownerDevice = isOwnerDevice()
+  const leaderboard = useLeaderboard(gameId, open)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -260,17 +262,13 @@ export function LeaderboardDialog({
             Best score per anonymous browser profile.
           </DialogDescription>
         </DialogHeader>
-        <AudienceToggle
-          value={audienceType}
-          onChange={setAudienceType}
-          label="Show scores from"
-        />
         {leaderboard.error ? (
           <LeaderboardLoadError retry={leaderboard.refresh} />
         ) : (
           <LeaderboardTable
             entries={leaderboard.entries ?? []}
             loading={leaderboard.loading}
+            showAudienceType={ownerDevice}
           />
         )}
       </DialogContent>
@@ -304,7 +302,7 @@ export function ScoreSubmissionDialog({
   const [error, setError] = useState("")
   const autoSaveStarted = useRef(false)
   const open = closedForKey !== requestOpenKey
-  const leaderboard = useLeaderboard(gameId, audienceType, open && saved)
+  const leaderboard = useLeaderboard(gameId, open && saved)
 
   useEffect(() => {
     let cancelled = false
@@ -421,18 +419,13 @@ export function ScoreSubmissionDialog({
           </div>
         ) : saved ? (
           <>
-            <AudienceToggle
-              value={audienceType}
-              onChange={setAudienceType}
-              label="Leaderboard group"
-              visitorOnly={ownerDevice}
-            />
             {leaderboard.error ? (
               <LeaderboardLoadError retry={leaderboard.refresh} />
             ) : (
               <LeaderboardTable
                 entries={leaderboard.entries ?? []}
                 loading={leaderboard.loading}
+                showAudienceType={ownerDevice}
               />
             )}
             <DialogFooter>
